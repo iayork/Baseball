@@ -8,33 +8,36 @@ from bs4 import BeautifulSoup as Soup
 import pandas as pd
 import numpy as np
 import os.path
-import sys
 
 import sqlite3 as sql
 from sqlite3 import OperationalError
 import pandas.io.sql as pdsql 
 
+from multiprocessing import Pool
+
+dbFolder = "/Users/iayork/Documents/Baseball/"
 
 class Parse_game():
     def __init__(self, gdl):
-        self.gdl = gdl 
+        self.gameday_url = gdl
+        self.gdl = gdl.split('/')[-2:-1][0] 
         
     def parse_game(self):
         try:
-            tree = etree.parse('%s%s%s%s%s' % (year_url, month_url, day_url, gdl, 
-                                               'game.xml'))
+            tree = etree.parse('%s%s' % (self.gameday_url, 'linescore.xml'))
             game = tree.getroot() 
-            gameD = dict(game.attrib) 
+            gameD = dict(game_ls.attrib) 
         except:
-            return False
+            #raise
+            return False 
             
         try:
-            tree = etree.parse('%s%s%s%s%s' % (year_url, month_url, day_url, gdl,
-                                               'linescore.xml'))
+            tree = etree.parse('%s%s' % (self.gameday_url, 'game.xml'))
             game_ls = tree.getroot() 
             game_lsD = dict(game_ls.attrib) 
-        except:
-            return False 
+        except OSError: 
+            pass   # Rainouts - "game" file can not exist even though "linescore" does 
+            
         gameD.update(game_lsD) 
         
         try:
@@ -45,8 +48,7 @@ class Parse_game():
         return True
             
     def parse_linescore(self):
-        tree = etree.parse('%s%s%s%s%s' % (year_url, month_url, day_url, gdl, 
-                                           'rawboxscore.xml'))
+        tree = etree.parse('%s%s' % (self.gameday_url,'rawboxscore.xml'))
         game = tree.getroot() 
         gameD = dict(game.attrib) 
         for linescore in tree.iterfind('linescore'):
@@ -68,8 +70,7 @@ class Parse_game():
                         
         
     def parse_player_coach_umpires(self):
-        tree = etree.parse('%s%s%s%s%s' % (year_url, month_url, day_url, gdl, 
-                                           'players.xml'))
+        tree = etree.parse('%s%s' % (self.gameday_url, 'players.xml'))
         for team in tree.iterfind('team'):
             for player in team.iterfind('player'):
                 self.parse_player(player)
@@ -110,8 +111,7 @@ class Parse_game():
             self.umpireDF = pd.DataFrame(umpireD, index=(0,))
             
     def parse_hip(self):
-        tree = etree.parse('%s%s%s%s%s' % (year_url, month_url, day_url, gdl, 
-                                               'inning/inning_hit.xml'))
+        tree = etree.parse('%s%s' % (self.gameday_url,'inning/inning_hit.xml'))
         for hip in tree.iterfind('hip'):
             hipD = dict(hip.attrib) 
             hipD['Gameday_link'] = self.gdl.strip('/')
@@ -124,13 +124,12 @@ class Parse_game():
                 self.hipDF = pd.DataFrame()
         
     def parse_ab_pitch_runner_action_po(self):
-        tree = etree.parse('%s%s%s%s%s' % (year_url, month_url, day_url, gdl,
-                                           'inning/inning_all.xml')) 
-        for inning in tree.iterfind('inning'):
+        tree = etree.parse('%s%s' % (self.gameday_url,'inning/inning_all.xml'))  
+        for inning in tree.iterfind('inning'): 
             self.inning_number = inning.attrib['num']
             for self.side in ('top','bottom'):
                 for inning_side in inning.iterfind(self.side):
-                    for ab in inning_side.iterfind('atbat'):
+                    for ab in inning_side.iterfind('atbat'): 
                         self.parse_atbat(ab) 
                         self.parse_pitch(ab)
                         self.parse_runner(ab)
@@ -140,11 +139,11 @@ class Parse_game():
                         self.parse_action(act)
                         
 
-    def parse_atbat(self, ab):
+    def parse_atbat(self, ab): 
         num = ab.attrib['num'] 
         abD = dict(ab.attrib) 
         abD['Inning'] = self.inning_number
-        abD['Side'] = self.side
+        abD['inning_side'] = self.side
         abD['Gameday_link'] = self.gdl.strip('/')
         try:
             abD['pitcher_name'] = self.id_to_nameD[abD['pitcher']]
@@ -215,10 +214,7 @@ class Parse_game():
         return self.pitchDF
                 
     def  get_actionDF(self):
-        try:
-            return self.actionDF
-        except AttributeError: # No actions in the game, return an empty dataframe
-            return pd.DataFrame()
+        return self.actionDF
                 
     def get_runnerDF(self):
         return self.runnerDF
@@ -236,44 +232,135 @@ class Parse_game():
         return self.umpireDF
     
     def get_poDF(self):
+        return self.poDF
+            
+
+                
+def parse_gdls(gdl):  
+    """Download and parse game information"""
+    parser = Parse_game(gdl)
+    if parser.parse_game():
+        #print(parser.get_gameDF()['gameday_link'].values[0] )
         try:
-            return self.poDF
-        except AttributeError: # No pitchouts in the game, return an empty dataframe
-            return pd.DataFrame()
+            parser.parse_linescore()
+            parser.parse_player_coach_umpires()
+            parser.parse_ab_pitch_runner_action_po()
+            parser.parse_hip()
+        except Exception as exc: 
+            pass
+            #bad_gdls.append(': '.join([gdl, exc.args[0]])) 
+    else:
+        pass
+        #bad_gdls.append(': '.join([gdl, 'Failed to parse Game properly'])) 
+        
+    return parser 
+
+def collect_gameday_urls(day_url): 
+    """Collect gameday_links and pass them on for parsing"""
+    r = requests.get(day_url)
+    day = Soup(r.text)
+
+    # ------------------- Get gameday_links -------------------
+
+    return ['%s%s' % (day_url, a.attrs['href']) for a in day.findAll('a') if 'gid_' in a.text]
+            
             
 def update_sql(df, name, con):
+    """Update SQLite database; alter table to add new columns if needed"""
     try:
         df.to_sql(name, if_exists='append', con=con, index=False)  
     except OperationalError as oe: # No column exists?
         error_info = oe.args[0]
         if 'has no column named ' in error_info:
+            # Add the missing column to the table 
             table = error_info.split()[1]
             column_to_add = error_info.split()[-1]
             alter_table = 'ALTER TABLE %s ADD COLUMN "%s" TEXT;' % (table, column_to_add) 
             c = con.cursor()
             c.execute(alter_table)
             con.commit()
-            update_sql(df, name, con)
-        else:   
-            #print ('Exception (not missing column)', error_info, flush=True)
+            update_sql(df, name, con) 
+        else:    
             try:
+                # "index=False" seems problematic some times - Why?
                 df.to_sql(name, if_exists='append', con=con)  
             except:
                 raise 
                 
+            
+def write_to_sqlite(results): 
+    """Collect scraping/parsing results and write to SQLite"""
+    
+    con = sql.connect(os.path.join(dbFolder, 'PitchFX', 'MBL_Scrape_test_threaded.db'))
+    for parser in results: 
+        #print (parser.gdl)
+        if parser.parse_game():
+            try:
+                update_sql(parser.get_gameDF(), 'game', con)
+            except Exception as exc:  
+                bad_gdls[parser.gdl] = exc.args[0]
+            try:
+                update_sql(parser.get_linescoreDF(), 'linescore', con)
+            except Exception as exc: 
+                bad_gdls[parser.gdl] = exc.args[0]
+            try:
+                update_sql(parser.get_atbatDF(), 'atbat', con)
+            except Exception as exc: 
+                bad_gdls[parser.gdl] = exc.args[0]
+            try: 
+                update_sql(parser.get_pitchDF(), 'pitch', con)
+            except Exception as exc: 
+                bad_gdls[parser.gdl] = exc.args[0] 
+            try:
+                update_sql(parser.get_actionDF(), 'action', con)
+            except Exception as exc: 
+                bad_gdls[parser.gdl] = exc.args[0]
+            try: 
+                update_sql(parser.get_runnerDF(), 'runner', con)
+            except Exception as exc: 
+                bad_gdls[parser.gdl] = exc.args[0]
+            try:
+                update_sql(parser.get_playerDF(), 'player', con)
+            except Exception as exc: 
+                bad_gdls[parser.gdl] = exc.args[0]
+            try: 
+                update_sql(parser.get_coachDF(), 'coach', con)
+            except Exception as exc: 
+                bad_gdls[parser.gdl] = exc.args[0]
+            try:
+                update_sql(parser.get_umpireDF(), 'umpire', con)
+            except Exception as exc: 
+                bad_gdls[parser.gdl] = exc.args[0]
+            try:
+                update_sql(parser.get_hipDF(), 'hip', con)
+            except Exception as exc: 
+                bad_gdls[parser.gdl] = exc.args[0]
+            try:
+                update_sql(parser.get_poDF(), 'po', con)
+            except Exception as exc: 
+                bad_gdls[parser.gdl] = exc.args[0]
+        else:
+                bad_gdls[parser.gdl] = "Failed to parse correctly"
+
+    con.commit()
+    con.close() 
+
+                
 def get_ymd():
+    """Ask for input on year, day/month to start with"""
     year = input('Year: ')
     month = input('Start month: ')
     day = input('Start day: ')
     return (year, month, day)
+
+# ------------------- Start the main script ------------------------------------------
     
-(year, month, day) = get_ymd()
+(year_start, month_start, day_start) = get_ymd() 
 
                 
 # ------------------- Set the base URL for the year ------
-dbFolder = "/Users/iayork/Documents/Baseball/"
 
-year_url = 'http://gd2.mlb.com/components/game/mlb/year_%s/' % year
+year_url = 'http://gd2.mlb.com/components/game/mlb/year_%s/' % year_start
 
 # ------------------- Get URLs for all months in a year ------
 r = requests.get(year_url)
@@ -281,97 +368,58 @@ year = Soup(r.text)
 month_urls = [a.attrs['href'] for a in year.findAll('a') if 'month' in a.text] 
 try:
     month_urls =[x for x in month_urls 
-                 if int(x.replace('month_','').replace('/','')) >= int(month)]
+                 if int(x.replace('month_','').replace('/','')) >= int(month_start)]
 except:
     pass
     
-
 # ------------------- loop through months, get URLs for each day --
+gameday_links = []
+
 for month_url in month_urls: 
-    bad_gdls = []    # Collect a month's worth of bad gameday_links to print
-    print(month_url.replace('month_', '').strip('/'), end = ': ', flush=True)
+    bad_gdls = {}    # Collect a month's worth of bad gameday_links to print
+    m = month_url.replace('month_', '').strip('/')
     r = requests.get('%s%s' % (year_url, month_url))
     month = Soup(r.text)
-    day_urls = [a.attrs['href'] for a in month.findAll('a') if 'day' in a.text] 
-    try:
-        day_urls =[x for x in day_urls 
-                     if int(x.replace('day_','').replace('/','')) >= int(day)]
-    except:
-        pass 
-
-    # ------------------- loop through days -------------------
-    for day_url in day_urls:
-        print(day_url.replace('day_', '').strip('/'), end = ' ', flush=True)
-        r = requests.get('%s%s%s' % (year_url, month_url, day_url))
-        day = Soup(r.text)
-        gameDF = pd.DataFrame()
+    day_links = [a.attrs['href'] for a in month.findAll('a') if 'day' in a.text] 
     
-        # ------------------- Initialize blank dataframes -------------------
-        linescoreDF = pd.DataFrame()
-
-        atbatDF = pd.DataFrame()
-        pitchDF = pd.DataFrame()
-        actionDF = pd.DataFrame()
-        runnerDF = pd.DataFrame()
-        poDF = pd.DataFrame()
-
-        playerDF = pd.DataFrame()
-        coachDF = pd.DataFrame()
-
-        hipDF = pd.DataFrame()
-        umpireDF = pd.DataFrame()
-
-        # 'gamecenter.xml' has media info if we want to collect that at some point
-        # 'miniscoreboard.xml' has some game/post-game info but most is covered in 'game.xml' 
-    
-        # ------------------- Get gameday_links -------------------
-
-        gameday_links = [a.attrs['href'] for a in day.findAll('a') if 'gid_' in a.text]
-
-        # ------------------- loop through Gamedays, parse out game data ----
-        for gdl in gameday_links:
-            parser = Parse_game(gdl)
-            if parser.parse_game():
-                gameDF = gameDF.append(parser.get_gameDF())
-                try:
-                    parser.parse_linescore()
-
-                    parser.parse_player_coach_umpires()
-                    parser.parse_ab_pitch_runner_action_po()
-                    parser.parse_hip()
-                
-                    linescoreDF = linescoreDF.append(parser.get_linescoreDF())
-                    atbatDF = atbatDF.append(parser.get_atbatDF())
-                    pitchDF = pitchDF.append(parser.get_pitchDF())
-                    actionDF = actionDF.append(parser.get_actionDF())
-                    runnerDF = runnerDF.append(parser.get_runnerDF())
-
-                    playerDF = playerDF.append(parser.get_playerDF())
-                    coachDF = coachDF.append(parser.get_coachDF())
-                    umpireDF = umpireDF.append(parser.get_umpireDF())
-                    hipDF = hipDF.append(parser.get_hipDF())
-                    poDF = poDF.append(parser.get_poDF())
-                except Exception as exc: 
-                    bad_gdls.append(': '.join([gdl, exc.args[0]])) 
-            else:
-                bad_gdls.append(': '.join([gdl, 'Failed to parse Game properly']))
-
-    
-        # ------------------- Write each day's info to SQLite -------------------
-
-        con = sql.connect(os.path.join(dbFolder, 'PitchFX', 'MBL_Scrape_test.db'))
-        for df, name in zip([atbatDF, pitchDF, actionDF, runnerDF, linescoreDF, 
-                             playerDF, coachDF, umpireDF, hipDF, gameDF],
-                            ['atbat', 'pitch', 'action', 'runner', 'linescore',
-                             'player', 'coach', 'umpire', 'hip', 'game']):
-            try:
-                update_sql(df, name, con)
-            except:
-                raise
-            
-        con.commit()
-        con.close()
+    if int(m) == int(month_start):
+        # FIX THIS to start with day_start
+        day_urls = ['%s%s%s' % (year_url, month_url, day_link) for day_link in day_links]
+    else:
+        day_urls = ['%s%s%s' % (year_url, month_url, day_link) for day_link in day_links]
         
-    print('\nCompleted month %s' % month_url.replace('month_', '').strip('/'), flush=True)
+    print ('Month %s: Collected %i day URLs; now collecting gameday_link URLs' % (m, len(day_urls)))
+
+    # ------------------- Multiprocess - Collect gameday_links from days -------
+    
+    pool = Pool() 
+    results = pool.map(collect_gameday_urls, day_urls) 
+    pool.close() 
+    for gdls in results:
+        gameday_links.extend(gdls) 
+    print('Collected %i gameday_link URLs; now parsing games' % len(gameday_links))
+     
+    # ------------------- Multiprocess - download & parse gamedays in groups of 50 -----
+    for i in range(0,len(gameday_links),50):
+        pool = Pool() 
+        results = pool.map(parse_gdls, gameday_links[i:i+50]) 
+        pool.close() 
+        write_to_sqlite(results)
+        print ('Parsed and saved %i of %i games' % ((i+50), len(gameday_links)))
+        
+    # ------------------- Check if all games are written to SQLite -------------
+    
+    con = sql.connect(os.path.join(dbFolder, 'PitchFX', 'MBL_Scrape_test_threaded.db'))
+    c = con.cursor()
+    c.execute("""Select distinct gameday_link from game""")
+    sql_gdls = [x[0] for x in c.fetchall()]
+    con.close()
+    if set([(set([x.strip('/').split('/')[-1].strip('gid_') for x in gameday_links]).issubset(set(sql_gdls)):
+        print ("Saved %i games for %s-%s-%s" % ( len(gameday_links), m, d, year_start))
+    else:
+        print ("Not saved to SQL: ")
+        print (set([x.strip('/').split('/')[-1].strip('gid_') for x in gameday_links]) - (set(sql_gdls)))
+            
+    
     if len(bad_gdls) > 0:
-        print ('Bad GDLs: %s' % '\n'.join(bad_gdls))
+        print ('Bad GDLs: %s' % ('\n'.join(['%s (%s)' % (x[0], x[1]) for x in bad_gdls.items()] )))
