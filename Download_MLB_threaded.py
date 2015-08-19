@@ -383,8 +383,10 @@ for month_url in month_urls:
     day_links = [a.attrs['href'] for a in month.findAll('a') if 'day' in a.text] 
     
     if int(m) == int(month_start):
-        # FIX THIS to start with day_start
-        day_urls = ['%s%s%s' % (year_url, month_url, day_link) for day_link in day_links]
+        # FIX THIS to start with day_start 
+        day_urls = ['%s%s%s' % (year_url, month_url, day_link) for day_link in day_links 
+                    if int(day_link.replace('day_','').strip('/')) >= int(day_start)]
+        print (day_urls)
     else:
         day_urls = ['%s%s%s' % (year_url, month_url, day_link) for day_link in day_links]
         
@@ -414,7 +416,7 @@ for month_url in month_urls:
     c.execute("""Select distinct gameday_link from game""")
     sql_gdls = [x[0] for x in c.fetchall()]
     con.close()
-    if set([(set([x.strip('/').split('/')[-1].strip('gid_') for x in gameday_links]).issubset(set(sql_gdls)):
+    if set([x.strip('/').split('/')[-1].strip('gid_') for x in gameday_links]).issubset(set(sql_gdls)):
         print ("Saved %i games for %s-%s-%s" % ( len(gameday_links), m, d, year_start))
     else:
         print ("Not saved to SQL: ")
