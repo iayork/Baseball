@@ -335,89 +335,92 @@ def get_ymd():
     return (year_start, month_start, day_start)
 
 # ------------------- Start the main script ------------------------------------------
-    
-(year_start, month_start, day_start) = get_ymd() 
+def main():    
+    (year_start, month_start, day_start) = get_ymd() 
 
             
-# ------------------- Set the base URL for the year ------
+    # ------------------- Set the base URL for the year ------
 
-year_url = 'http://gd2.mlb.com/components/game/mlb/year_%s/' % year_start
+    year_url = 'http://gd2.mlb.com/components/game/mlb/year_%s/' % year_start
 
-# ------------------- Get URLs for all months in a year ------
-r = requests.get(year_url)
-year = Soup(r.text)
-month_urls = [a.attrs['href'] for a in year.findAll('a') if 'month' in a.text] 
-try:
-    month_urls =[x for x in month_urls if int(x.replace('month_','').replace('/','')) >= int(month_start)]
-except:
-    pass
+    # ------------------- Get URLs for all months in a year ------
+    r = requests.get(year_url)
+    year = Soup(r.text)
+    month_urls = [a.attrs['href'] for a in year.findAll('a') if 'month' in a.text] 
+    try:
+        month_urls =[x for x in month_urls if int(x.replace('month_','').replace('/','')) >= int(month_start)]
+    except:
+        pass
 
-# ------------------- loop through months, get URLs for each day --
-gameday_links = []
+    # ------------------- loop through months, get URLs for each day --
+    gameday_links = []
 
-for month_url in month_urls: 
-    bad_gdls = {}    # Collect a month's worth of bad gameday_links to print
+    for month_url in month_urls: 
+        bad_gdls = {}    # Collect a month's worth of bad gameday_links to print
 
-    m = month_url.replace('month_', '').strip('/')
-    r = requests.get('%s%s' % (year_url, month_url))
-    month = Soup(r.text)
-    day_links = [a.attrs['href'] for a in month.findAll('a') if 'day' in a.text] 
+        m = month_url.replace('month_', '').strip('/')
+        r = requests.get('%s%s' % (year_url, month_url))
+        month = Soup(r.text)
+        day_links = [a.attrs['href'] for a in month.findAll('a') if 'day' in a.text] 
 
-    if int(m) == int(month_start):
-        day_urls = ['%s%s%s' % (year_url, month_url, day_link) for day_link in day_links 
-                    if int(day_link.replace('day_','').strip('/')) >= int(day_start)] 
-    else:
-        day_urls = ['%s%s%s' % (year_url, month_url, day_link) for day_link in day_links]
+        if int(m) == int(month_start):
+            day_urls = ['%s%s%s' % (year_url, month_url, day_link) for day_link in day_links 
+                        if int(day_link.replace('day_','').strip('/')) >= int(day_start)] 
+        else:
+            day_urls = ['%s%s%s' % (year_url, month_url, day_link) for day_link in day_links]
     
-    print ('Month %s: Collected %i day URLs; now collecting gameday_link URLs' % (m, len(day_urls)))
+        print ('Month %s: Collected %i day URLs; now collecting gameday_link URLs' % (m, len(day_urls)))
 
-    # ------------------- Multiprocess - Collect gameday_links from days -------
+        # ------------------- Multiprocess - Collect gameday_links from days -------
 
-    pool = Pool() 
-    results = pool.map(collect_gameday_urls, day_urls) 
-    pool.close() 
-    for gdls in results:
-        gameday_links.extend(gdls) 
-    print('Collected %i gameday_link URLs; now parsing games' % len(gameday_links))
- 
-    # ------------------- Multiprocess - download & parse gamedays in groups of 50 -----
-    for i in range(0,len(gameday_links),50):
         pool = Pool() 
-        results = pool.map(parse_gdls, gameday_links[i:i+50]) 
+        results = pool.map(collect_gameday_urls, day_urls) 
         pool.close() 
+        for gdls in results:
+            gameday_links.extend(gdls) 
+        print('Collected %i gameday_link URLs; now parsing games' % len(gameday_links))
+ 
+        # ------------------- Multiprocess - download & parse gamedays in groups of 50 -----
+        for i in range(0,len(gameday_links),50):
+            pool = Pool() 
+            results = pool.map(parse_gdls, gameday_links[i:i+50]) 
+            pool.close() 
         
-        # ------------------- Multiprocess - write to SQL -----
+            # ------------------- Multiprocess - write to SQL -----
     
-        con = sql.connect(os.path.join(dbFolder, 'PitchFX', 'MBL_Scrape_test_threaded.db'))
-        for parser in results: 
-            saved = parser.save_all(con) 
-            if saved != True:
-                bad_gdls[parser.gdl] = saved
-                #print (saved)
+            con = sql.connect(os.path.join(dbFolder, 'PitchFX', 'MBL_Scrape_test_threaded.db'))
+            for parser in results: 
+                saved = parser.save_all(con) 
+                if saved != True:
+                    bad_gdls[parser.gdl] = saved
+                    #print (saved)
             
 
-        con.commit()
-        con.close() 
+            con.commit()
+            con.close() 
         
         
-        if (i+50) > len(gameday_links):
-            print ('Parsed and saved %i of %i games' % (len(gameday_links), len(gameday_links)))
-        else:   
-           print ('Parsed and saved %i of %i games' % ((i+50), len(gameday_links)))
+            if (i+50) > len(gameday_links):
+                print ('Parsed and saved %i of %i games' % (len(gameday_links), len(gameday_links)))
+            else:   
+               print ('Parsed and saved %i of %i games' % ((i+50), len(gameday_links)))
     
-    # ------------------- Check if all games are written to SQLite -------------
+        # ------------------- Check if all games are written to SQLite -------------
 
-    con = sql.connect(os.path.join(dbFolder, 'PitchFX', 'MBL_Scrape_test_threaded.db'))
-    c = con.cursor()
-    c.execute("""Select distinct gameday_link from game""")
-    sql_gdls = [x[0] for x in c.fetchall()]
-    con.close()
-    if set([x.strip('/').split('/')[-1].strip('gid_') for x in gameday_links]).issubset(set(sql_gdls)):
-        print ("Saved %i games for month %s, %s" % ( len(gameday_links), m, year_start))
-    else:
-        print ("Not saved to SQL: ")
-        print (set([x.strip('/').split('/')[-1].strip('gid_') for x in gameday_links]) - (set(sql_gdls)))
+        con = sql.connect(os.path.join(dbFolder, 'PitchFX', 'MBL_Scrape_test_threaded.db'))
+        c = con.cursor()
+        c.execute("""Select distinct gameday_link from game""")
+        sql_gdls = [x[0] for x in c.fetchall()]
+        con.close()
+        if set([x.strip('/').split('/')[-1].strip('gid_') for x in gameday_links]).issubset(set(sql_gdls)):
+            print ("Saved %i games for month %s, %s" % ( len(gameday_links), m, year_start))
+        else:
+            print ("Not saved to SQL: ")
+            print (set([x.strip('/').split('/')[-1].strip('gid_') for x in gameday_links]) - (set(sql_gdls)))
         
 
-    if len(bad_gdls) > 0:
-        print ('Bad GDLs: %s' % ('\n'.join(['%s (%s)' % (x[0], x[1]) for x in bad_gdls.items()] )))
+        if len(bad_gdls) > 0:
+            print ('Bad GDLs: %s' % ('\n'.join(['%s (%s)' % (x[0], x[1]) for x in bad_gdls.items()] )))
+            
+if __name__ == "__main__":
+    main()
