@@ -18,18 +18,56 @@ from multiprocessing import Pool
 dbFolder = "/Users/iayork/Documents/Baseball/"
 
 class Parse_game():
+    """ Class Parse_game takes a base URL, e.g. 
+        http://gd2.mlb.com/components/game/mlb/year_2015/month_08/day_23
+    
+    Completes the URL with the various xml files:
+        game.xml
+        linescore.xml
+        inning/inning/xml
+        players.xml
+        rawboxscore.xml
+        
+    Parses each to yield dataframes for 
+        game
+        boxscore
+        action
+        runner
+        player
+        coach
+        po
+        umpire
+        hip
+        atbat
+        pitch 
+    
+    Saves dataframes to SQL, making new tables or columns if necessary
+    """
+    
+    # PITCHrx starts with miniscoreboard.xml per date, which lists all the 
+    # game information in one xml file. This seems to be where they get the 
+    # gameday_link information (also media, which I don't collect)
+    
     def __init__(self, gdl):
         self.gameday_url = gdl
         self.gdl = gdl.split('/')[-2:-1][0].strip('/')
-        
+
+
+    # ------------------- Parsing functions -------------------------
     def parse_game(self):
+        """ General game information.  
+            Linescore.xml provides most of the info; game.xml provides the rest
+            Even for a rainout/cancelled game, there should be some game info
+            Sometimes a gameday_link goes nowhere = no game info at all.  In this case,
+            return False and don't try to collect any pitch, atbat, player, etc info 
+        """
         try:
             tree = etree.parse('%s%s' % (self.gameday_url, 'linescore.xml'))
             game = tree.getroot() 
             gameD = dict(game.attrib) 
         except:
-            raise
-            print (self.gdl, '%s%s' % (self.gameday_url, 'linescore.xml'))
+            #raise
+            #print (self.gdl, '%s%s' % (self.gameday_url, 'linescore.xml'))
             return False 
             
         try:
@@ -43,33 +81,40 @@ class Parse_game():
         try:
             self.gameDF = self.gameDF.append(pd.DataFrame(gameD, index=(0,)))
         except AttributeError: 
-            self.gameDF = pd.DataFrame(gameD, index=(0,))
+            return False 
             
         return True
             
-    def parse_linescore(self):
+    def parse_boxscore(self):
+        """ The inning-by-inning boxscore
+            PITCHr/x does not download this, but it might be useful 
+        """
         tree = etree.parse('%s%s' % (self.gameday_url,'rawboxscore.xml'))
         game = tree.getroot() 
         gameD = dict(game.attrib) 
-        for linescore in tree.iterfind('linescore'):
-            linescoreD = dict(linescore.attrib)
+        for boxscore in tree.iterfind('linescore'):
+            boxscoreD = dict(boxscore.attrib)
     
-            for inning in linescore.iterfind('inning_line_score'):
+            for inning in boxscore.iterfind('inning_line_score'):
                 inningD = dict(inning.attrib)
                 for side in ['home','away']:
                     try:
-                        linescoreD['%s_%s' % (side, inningD['inning']) ] = inningD[side]
+                        boxscoreD['%s_%s' % (side, inningD['inning']) ] = inningD[side]
                     except KeyError:  # No info for home or away?
-                        linescoreD['%s_%s' % (side, inningD['inning']) ] = np.nan
+                        boxscoreD['%s_%s' % (side, inningD['inning']) ] = np.nan
                         
-        linescoreD['Gameday_link'] = self.gdl  
+        boxscoreD['Gameday_link'] = self.gdl  
         try:
-            self.linescoreDF = self.linescoreDF.append(pd.DataFrame(linescoreD, index=(0,)))
+            self.boxscoreDF = self.boxscoreDF.append(pd.DataFrame(boxscoreD, index=(0,)))
         except AttributeError: 
-            self.linescoreDF = pd.DataFrame(linescoreD, index=(0,))
+            self.boxscoreDF = pd.DataFrame(boxscoreD, index=(0,))
                         
         
     def parse_player_coach_umpires(self):
+        """ Contains player, coach, and umpire information for the game
+            Generate 3 separate dataframes from the xml file
+            Each dataframe parsed separately (parse_player, parse_coach, parse_umpire)
+        """
         tree = etree.parse('%s%s' % (self.gameday_url, 'players.xml'))
         for team in tree.iterfind('team'):
             for player in team.iterfind('player'):
@@ -83,6 +128,8 @@ class Parse_game():
         self.parse_player_id_to_name()
         
     def parse_player_id_to_name(self):
+        """ Takes the "player" subsection from the parsed "player.xml" file
+        """
         self.id_to_nameD = {x[0]:'%s %s' % (x[1], x[2])
                             for x in self.playerDF[['id','first','last']].values}
                 
@@ -95,6 +142,8 @@ class Parse_game():
             self.playerDF = pd.DataFrame(playerD, index=(0,))
         
     def parse_coach(self, coach): 
+        """ Takes the "coach" subsection from the parsed "player.xml" file
+        """
         coachD = dict(coach.attrib) 
         coachD['Gameday_link'] = self.gdl
         try:
@@ -103,6 +152,8 @@ class Parse_game():
             self.coachDF = pd.DataFrame(coachD, index=(0,))
             
     def parse_umpire(self, umpire): 
+        """ Takes the "umpire" subsection from the parsed "player.xml" file
+        """
         umpireD = dict(umpire.attrib) 
         umpireD['Gameday_link'] = self.gdl
         try:
@@ -111,6 +162,8 @@ class Parse_game():
             self.umpireDF = pd.DataFrame(umpireD, index=(0,))
             
     def parse_hip(self):
+        """ Hits
+        """
         tree = etree.parse('%s%s' % (self.gameday_url,'inning/inning_hit.xml'))
         for hip in tree.iterfind('hip'):
             hipD = dict(hip.attrib) 
@@ -124,6 +177,14 @@ class Parse_game():
                 self.hipDF = pd.DataFrame()
         
     def parse_ab_pitch_runner_action_po(self):
+        """ The inning/inning_all.xml files is broken into 5 dataframes:
+            atbat
+            pitch
+            runner
+            po
+            action
+            Each one is parsed separately from the original xml
+        """
         tree = etree.parse('%s%s' % (self.gameday_url,'inning/inning_all.xml'))  
         for inning in tree.iterfind('inning'): 
             self.inning_number = inning.attrib['num']
@@ -138,8 +199,9 @@ class Parse_game():
                     for act in inning_side.iterfind('action'):  
                         self.parse_action(act)
                         
-
     def parse_atbat(self, ab): 
+        """ Parses the "atbat" subsection from the parsed "inning/inning_all.xml" file
+        """
         num = ab.attrib['num'] 
         abD = dict(ab.attrib) 
         abD['Inning'] = self.inning_number
@@ -159,6 +221,8 @@ class Parse_game():
             self.atbatDF = pd.DataFrame(abD, index=(0,))
 
     def parse_pitch(self, ab):
+        """ Parses the "pitch" subsection from the parsed "inning/inning_all.xml" file
+        """
         num = ab.attrib['num'] 
         for pt in ab.iterfind('pitch'):  
             pitchD = dict(pt.attrib)
@@ -172,6 +236,8 @@ class Parse_game():
                 self.pitchDF = pd.DataFrame(pitchD, index=(0,)) 
 
     def parse_runner(self, ab):
+        """ Parses the "runner" subsection from the parsed "inning/inning_all.xml" file
+        """
         num = ab.attrib['num'] 
         for rn in ab.iterfind('runner'): 
             rnD = dict(rn.attrib) 
@@ -183,6 +249,8 @@ class Parse_game():
                 self.runnerDF = pd.DataFrame(rnD, index=(0,))
                 
     def parse_action(self, act):
+        """ Parses the "action" subsection from the parsed "inning/inning_all.xml" file
+        """
             actD = dict(act.attrib) 
             actD['Gameday_link'] = self.gdl
             try:
@@ -191,6 +259,9 @@ class Parse_game():
                 self.actionDF = pd.DataFrame(actD, index=(0,))
                 
     def parse_po(self, ab):
+        """ Parses the "po" subsection from the parsed "inning/inning_all.xml" file
+            This could be empty/non-existent if there were no pitchouts in the game
+        """
         num = ab.attrib['num'] 
         for po in ab.iterfind('po'):  
             poD = dict(po.attrib)
@@ -201,7 +272,13 @@ class Parse_game():
             except AttributeError: 
                 self.poDF = pd.DataFrame(poD, index=(0,))
                 
-               
+
+    def get_gameDF(self):
+        """ Return gameDF to check for minimal success 
+        """
+        return self.gameDF
+                
+    # ------------------- SQL functions -------------------------           
     def update_sql(self, df, name, con):
         """Update SQLite database; alter table to add new columns if needed"""
         try:
@@ -223,27 +300,20 @@ class Parse_game():
                     df.to_sql(name, if_exists='append', con=con)  
                 except:
                     raise 
-                    
-    def get_gameDF(self):
-        return self.gameDF
     
     def save_all(self, con):
+        """ Save each dataframe to SQLite
+            Empty dataframes are possible and valid (e.g. for rainouts, only gameDF
+            might be present) so just return error info without stopping the saves
+        """
         saved = True
         try:
             self.update_sql(self.gameDF, 'game', con)
         except Exception as exc:  
-            # If game is broken, don't try to save remainder
+            # If game is broken, don't try to save any more data
             return exc.args[0]
         try:
-            self.update_sql(self.linescoreDF, 'linescore', con)
-        except Exception as exc:  
-            saved = exc.args[0]
-        try:
-            self.update_sql(self.atbatDF, 'atbat', con)
-        except Exception as exc:  
-            saved = exc.args[0]
-        try:
-            self.update_sql(self.pitchDF, 'pitch', con)
+            self.update_sql(self.boxscoreDF, 'boxscore', con)
         except Exception as exc:  
             saved = exc.args[0]
         try:
@@ -263,19 +333,29 @@ class Parse_game():
         except Exception as exc:  
             saved = exc.args[0]
         try:
-            self.update_sql(self.hipDF, 'hip', con)
+            self.update_sql(self.poDF, 'po', con)
         except Exception as exc:  
-            ssaved = exc.args[0]
+            saved = exc.args[0]
         try:
             self.update_sql(self.umpireDF, 'umpire', con)
         except Exception as exc:  
             saved = exc.args[0]
         try:
-            self.update_sql(self.poDF, 'po', con)
+            self.update_sql(self.hipDF, 'hip', con)
+        except Exception as exc:  
+            ssaved = exc.args[0]
+        try:
+            self.update_sql(self.atbatDF, 'atbat', con)
+        except Exception as exc:  
+            saved = exc.args[0]
+        try:
+            self.update_sql(self.pitchDF, 'pitch', con)
         except Exception as exc:  
             saved = exc.args[0]
             
         return saved
+
+# --------------End of Parse_game class ----------------
 
                 
 def parse_gdls(gdl):  
@@ -323,20 +403,36 @@ def write_to_sqlite(results):
                 
 def get_ymd():
     """Ask for input on year, day/month to start with"""
-    year_start = input('Year: ')
     try:
-        month_start = input('Month: ')
+        year_start = int(input('Year: '))
+    except:
+        year_start = 2015
+    try:
+        month_start = int(input('Start month: '))
     except:
         month_start = 1
     try:
-        day_start = input('Day : ')
+        day_start = int(input('Start day : '))
     except:
         day_start = 1
-    return (year_start, month_start, day_start)
+    try:
+        month_end = int(input('End month: '))
+    except:
+        month_end = 12
+    try:
+        day_end = int(input('End day : '))
+    except:
+        day_end = 31
+    return (year_start, month_start, month_end, day_start, day_end)
 
 # ------------------- Start the main script ------------------------------------------
 def main():    
-    (year_start, month_start, day_start) = get_ymd() 
+    (year_start, month_start, month_end, day_start, day_end) = get_ymd() 
+    assert month_end >= month_start, "End month can't be earlier than start month"
+    assert day_end >= day_start, "End day can't be earlier than start day" 
+    
+    print ("Collecting games from %s-%s-%s to %s-%s-%s" % (month_start, day_start, year_start,
+                                                          month_end, day_end, year_start))
 
             
     # ------------------- Set the base URL for the year ------
@@ -347,27 +443,29 @@ def main():
     r = requests.get(year_url)
     year = Soup(r.text)
     month_urls = [a.attrs['href'] for a in year.findAll('a') if 'month' in a.text] 
-    try:
-        month_urls =[x for x in month_urls if int(x.replace('month_','').replace('/','')) >= int(month_start)]
-    except:
-        pass
+    # Only keep months between month_start and month_end
+    month_urls =[x for x in month_urls if int(x.replace('month_','').replace('/','')) >= int(month_start)]
+    month_urls =[x for x in month_urls if int(x.replace('month_','').replace('/','')) <= int(month_end)]
 
     # ------------------- loop through months, get URLs for each day --
-    gameday_links = []
 
     for month_url in month_urls: 
+        gameday_links = []
         bad_gdls = {}    # Collect a month's worth of bad gameday_links to print
 
         m = month_url.replace('month_', '').strip('/')
         r = requests.get('%s%s' % (year_url, month_url))
         month = Soup(r.text)
         day_links = [a.attrs['href'] for a in month.findAll('a') if 'day' in a.text] 
-
+        day_urls = ['%s%s%s' % (year_url, month_url, day_link) for day_link in day_links]
+        
+        # only keep days between start and end
         if int(m) == int(month_start):
             day_urls = ['%s%s%s' % (year_url, month_url, day_link) for day_link in day_links 
-                        if int(day_link.replace('day_','').strip('/')) >= int(day_start)] 
-        else:
-            day_urls = ['%s%s%s' % (year_url, month_url, day_link) for day_link in day_links]
+                        if int(day_link.replace('day_','').strip('/')) >= int(day_start)]
+        if int(m) == int(month_end): 
+            day_urls = ['%s%s%s' % (year_url, month_url, day_link) for day_link in day_links 
+                        if int(day_link.replace('day_','').strip('/')) >= int(day_start)]  
     
         print ('Month %s: Collected %i day URLs; now collecting gameday_link URLs' % (m, len(day_urls)))
 
@@ -421,6 +519,17 @@ def main():
 
         if len(bad_gdls) > 0:
             print ('Bad GDLs: %s' % ('\n'.join(['%s (%s)' % (x[0], x[1]) for x in bad_gdls.items()] )))
+            
+    # ---------- Remove duplicate rows via pandas ------------
+    
+    con = sql.connect(os.path.join(dbFolder, 'PitchFX', 'MBL_Scrape_test_threaded.db'))
+    for table in ('action', 'coach', 'hip', 'pitch', 'po', 'umpire', 
+                  'atbat', 'game', 'boxscore', 'player', 'runner'):
+        df = pd.read_sql("select * from %s" % table, con)
+        print ('Table %s before removing duplicates is %i rows' % (table, len(df)))
+        df.drop_duplicates(inplace=True)
+        print ('Table %s after removing duplicates is %i rows' % (table, len(df)))
+        df.to_sql(name=table, if_exists='replace', con=con)
             
 if __name__ == "__main__":
     main()

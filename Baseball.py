@@ -88,7 +88,7 @@ class Strikezone(object):
         szy2 = [self.sz_top, self.sz_bottom, self.sz_bottom, self.sz_top, self.sz_top]
         return {'szx':self.szx, 'szy':szy2}
         
-    def get_50pct_zone(self, year=2014):
+    def get_50pct_zone(self, year=2015):
         # Outside the points the chance of a ball vs. a called strike is > 50%
         
         # 50% strike zone (zone outside of which there is >50% chance a pitch will be called a ball vs. a strike)
@@ -172,6 +172,15 @@ class Strikezone(object):
                        (-0.875, 3.125), (-0.75, 3.25), (-0.375, 3.375), (0.5, 3.25), (0.75, 3.125), (0.875, 3.0), 
                        (0.875, 2.875), (0.875, 2.75), (1.0, 2.625), (1.0, 2.5), (1.0, 2.375), (1.0, 2.25), (1.0, 2.125), 
                        (1.0, 2.0), (0.875, 1.875), (0.875, 1.75), (0.75, 1.625), (0.625, 1.5), (-0.375, 1.5)]
+                       
+        k_zoneL_2015 = [(-0.875,1.5), (-1.0,  1.6), (-1.1, 1.875), (-1.05, 2.75), (-1.0,   3.0), (-0.86, 3.28), 
+                        (-0.115,3.45), (0.55,3.3), (0.75,3.0),  (0.8,2.875), (0.8,2.125), (0.75,2.0), (0.625,1.75), 
+                        (0.5,1.625), (0.25,1.5), (-0.25,1.45), (-0.875, 1.5)]
+ 
+		k_zoneR_2015 = [(-0.375,1.5), (-0.875, 1.625), (-.975, 1.875), (-1.0, 2.175), (-.975, 2.875), (-0.87, 3.125), 
+		                (-0.75, 3.325), (-0.375,3.45), (0.5, 3.375), (0.825, 3.175), (.97, 2.875), (.97, 2.75), 
+		                (.97, 2.625), (.97, 2.5), (.97, 2.375), (.97, 2.25), (.97, 2.125), (.97, 2.0), (0.9, 1.75), 
+		                (0.6, 1.5), -0.375, 1.5)]
 
         zoneD = {2008:(k_zoneL_2008, k_zoneR_2008),
                  2009:(k_zoneL_2009, k_zoneR_2009),
@@ -179,7 +188,8 @@ class Strikezone(object):
                  2011:(k_zoneL_2011, k_zoneR_2011),
                  2012:(k_zoneL_2012, k_zoneR_2012),
                  2013:(k_zoneL_2013, k_zoneR_2013),
-                 2014:(k_zoneL_2014, k_zoneR_2014)}
+                 2014:(k_zoneL_2014, k_zoneR_2014), 
+                 2015:(k_zoneL_2015, k_zoneR_2015)}
         
         (k_zoneL, k_zoneR) = zoneD[year]
         return {'xLs': [x[0] for x in k_zoneL],
