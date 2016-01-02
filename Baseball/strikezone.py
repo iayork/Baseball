@@ -2,10 +2,16 @@
 Functions for calculating and analyzing the strike zone
 
 
-def get_50pct_zone(self, year=2015):
+def get_50pct_zone(year=2015):
     Outside the points the chance of a ball vs. a called strike is > 50%
     50% strike zone (zone outside of which there is >50% chance a pitch 
     will be called a ball vs. a strike)
+    
+
+def official_zone_25_boxes():
+	Split the "official" strike zone into 16 boxes
+    Return (topmost, bottommost,leftmost,rightmost, x_step, y_step)
+    Adding one step to each side of the zone
 
 
 class Strikezone(object)
@@ -24,7 +30,21 @@ class Zone(Strikezone):
 
 """
 
-
+def official_zone_25_boxes():
+	sz_left = -1.66/2
+	sz_right = 1.66/2
+	x_step = (sz_right - sz_left)/3.0
+	leftmost = (sz_left - x_step)
+	rightmost = (sz_right + x_step)
+	
+	sz_bottom = 1.58
+	sz_top = 3.4
+	y_step = (sz_top - sz_bottom)/3.0
+	bottommost = (sz_bottom - y_step)
+	topmost = (sz_top + y_step)
+	return (topmost, bottommost,leftmost,rightmost, x_step, y_step)
+	
+	
 class Strikezone(object):
     """
     class Strikezone(object):
@@ -39,18 +59,7 @@ class Strikezone(object):
     def __init__(self):
         pass
         
-    def official_zone(self):
-        self.sz_left = -1.66/2
-        self.sz_right = 1.66/2
-        self.x_step = (self.sz_right - self.sz_left)/3.0
-        self.leftmost = (self.sz_left - self.x_step)
-        self.rightmost = (self.sz_right + self.x_step)
-        
-        self.sz_bottom = 1.58
-        self.sz_top = 3.4
-        self.y_step = (self.sz_top - self.sz_bottom)/3.0
-        self.bottommost = (self.sz_bottom - self.y_step)
-        self.topmost = (self.sz_top + self.y_step)
+
     
     def get_x_list(self):
         return [self.leftmost + (i * self.x_step) for i in range(5)]

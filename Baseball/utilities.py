@@ -1,8 +1,7 @@
 """Various utility functions for baseball: SQL connections, SQL database calls
 
-get_con(dbFolder, db):
+get_con(year, dbFolder="/Users/iayork/Documents/Baseball/PitchFX", db=False):
     dbFolder default="/Users/iayork/Documents/Baseball/PitchFX"
-    db default = 'pitchfx2015.db'
     
 get_pitchab(con, reg): 
     Get everything from pitch and atbat, merge on gameday_link + num
@@ -37,11 +36,11 @@ import sqlite3 as sql
 import os.path
  
     
-def get_con(dbFolder="/Users/iayork/Documents/Baseball/PitchFX", db='pitchfx2015.db'):
-    """
-    dbFolder default="/Users/iayork/Documents/Baseball/PitchFX"
-    db default = 'pitchfx2015.db'
-    """
+def get_con(year, dbFolder="/Users/iayork/Documents/Baseball/PitchFX", db=False):
+    """ dbFolder default="/Users/iayork/Documents/Baseball/PitchFX" """
+    if not db:
+        db = 'pitchfx%s.db' % year
+    
     print(os.path.join(dbFolder, db))
     return  sql.connect(os.path.join(dbFolder, db))   
     
@@ -124,8 +123,11 @@ def get_bbref_pitch(url):
     returns a pandas dataframe containing bbref info (not all numeric?)
     usage get_bbref(url)
     """
+    
+    from Baseball import baseball
     import requests
     from bs4 import BeautifulSoup 
+    
     r = requests.get(url)
     data = r.text
     soup = BeautifulSoup(data, 'lxml')
@@ -138,10 +140,8 @@ def get_bbref_pitch(url):
     
     bbref['GDL_Date'] = bbref['Date'].apply(lambda x:bbref_date_to_gdl_date(x))
     
-    from Baseball import bball
-    
-    bbref['WHIP'] = bball.get_whip(bbref)
-    bbref['ERIP'] = bball.get_erip(bbref)
+    bbref['WHIP'] = baseball.get_whip(bbref)
+    bbref['ERIP'] = baseball.get_erip(bbref)
         
     return bbref 
                              

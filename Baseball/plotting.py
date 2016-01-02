@@ -10,15 +10,26 @@ pitch_char_3panel(df):
     break_length vs speed
     break_angle vs speed
     break_length vs break_length 
-    
-circles(x, y, s, c, ax, vmin, vmax, **kwargs):
 
-circle(x, y, s, ax, c, fc='white', ec='dimgray', **kwargs):
+circle(x, y, s, ax, fc='white', ec='dimgray', vmin=None, vmax=None, **kwargs)
+    For drawing the circles in Batter's Strike Zones by SLG
+    Takes either a single facecolor or a list of colors
+    
+circles(x, y, s, ax, ec, fc='white', lw=2.5, a=0.2, **kwargs):
+    For drawing the pitch indicators in the game characterization
       
 half_circle(x, y, s, c, ax, a=0.5, **kwargs):
+    For drawing the pitch indicators in the game characterization
 
-basic_layout_2(year=2015)
-    Basic side-by-side set of square plots with strike zone shown
+basic_layout_pitcher_2(year=2015): 
+    Visualize the strike zone from the umpire's view for a pitcher
+    Two charts, one for LHB, one for RHB (one pitch type only)
+    Plot the de facto strike zone for the year on each plot 
+    
+def basic_plot_batter(stand, year=2015): 
+    Visualize the strike zone from the umpire's view for a batter
+    Two charts, one for LHP, one for RHP
+    Plot the de facto strike zone for the year on each plot 
     
 large_font():   
     16pt dimgray sans normal 
@@ -41,12 +52,13 @@ cmapGyGn():
 """ 
 
 import pandas as pd
+import numpy as np
 import matplotlib as mpl
 import seaborn as sb
 from matplotlib import pyplot as plt
 
-"""A dict of seaborn colors suitable for plotting various pitch types """
 
+"""A dict of seaborn colors suitable for plotting various pitch types """
 muted = sb.color_palette('muted') 
 set2 = sb.color_palette('muted')    
 ptype_clrs = {  'FF':muted[2], 
@@ -112,6 +124,26 @@ def pitch_char_3panel(df):
     return(fig, ax1,ax2,ax3)
     
     
+def circle(x, y, s, ax, fc='white', ec='dimgray', vmin=None, vmax=None, **kwargs):
+    from matplotlib.patches import Circle
+    from matplotlib.collections import PatchCollection 
+
+    #http://stackoverflow.com/questions/9081553/python-scatter-plot-size-and-style-of-the-marker 
+    patches = [Circle((x_,y_), s_) for x_,y_,s_ in zip(x,y,s)]
+    
+    if type(fc) == list:
+        kwargs.update(edgecolor=ec, linestyle='-', antialiased=True) 
+        collection = PatchCollection(patches, **kwargs)
+        collection.set_array(np.asarray(fc))
+        collection.set_clim(vmin, vmax) 
+    else:
+        kwargs.update(edgecolor=ec, facecolor=fc, linestyle='-', antialiased=True)  
+        collection = PatchCollection(patches, **kwargs)
+
+    ax.add_collection(collection)
+    return collection 
+    
+    
 def circles(x, y, s, ax, ec, fc='white', lw=2.5, a=0.2, **kwargs):
     from matplotlib.patches import Circle
     from matplotlib.collections import PatchCollection 
@@ -126,21 +158,6 @@ def circles(x, y, s, ax, ec, fc='white', lw=2.5, a=0.2, **kwargs):
 
     ax.add_collection(collection)
     return collection
-    
-def circle(x, y, s, ax, c, fc='white', ec='dimgray', **kwargs):
-    from matplotlib.patches import Circle
-    from matplotlib.collections import PatchCollection 
-
-    #http://stackoverflow.com/questions/9081553/python-scatter-plot-size-and-style-of-the-marker 
-
-    kwargs.update(facecolor=fc,linewidth=0.25, 
-                  edgecolor=ec, linestyle='-', antialiased=True) 
-
-    patches = [Circle((x_,y_), s_) for x_,y_,s_ in zip(x,y,s)] 
-    collection = PatchCollection(patches, **kwargs)
-
-    ax.add_collection(collection)
-    return collection 
     
       
 def half_circle(x, y, s, c, ax, a=0.5, **kwargs):
@@ -160,13 +177,16 @@ def half_circle(x, y, s, c, ax, a=0.5, **kwargs):
     return collection     
     
     
-def basic_layout_2(year=2015):
-    """ Basic side-by-side set of square plots with strike zone shown """ 
+def basic_layout_pitcher_2(year=2015):
+    """
+    Visualize the strike zone from the umpire's view for a pitcher
+    Two charts, one for LHB, one for RHB (one pitch type only)
+    Plot the de facto strike zone for the year on each plot """
 
     from Baseball import strikezone 
     zone_dict = strikezone.get_50pct_zone(year) 
 
-    fig, (ax1, ax2) = plt.subplots(1,2,figsize=(12,7))
+    fig, (ax1, ax2) = plt.subplots(1,2,figsize=(11.5,6), facecolor='white')
     
     ax1.plot(zone_dict['xLs'], zone_dict['yLs'], linestyle='-', linewidth=1, color='dimgrey') 
     ax2.plot(zone_dict['xRs'], zone_dict['yRs'], linestyle='-', linewidth=1, color='dimgrey')  
@@ -185,7 +205,43 @@ def basic_layout_2(year=2015):
     
     plt.tight_layout()
     
-    return (fig, ax1, ax2)
+    return (fig, ax1, ax2) 
+    
+def basic_plot_batter(stand, year=2015):
+    """
+    Visualize the strike zone from the umpire's view for a batter
+    Two charts, one for LHP, one for RHP
+    Plot the de facto strike zone for the year on each plot """
+
+    from Baseball import strikezone 
+    zone_dict = strikezone.get_50pct_zone(year) 
+    
+    fig, (ax1, ax2) = plt.subplots(1,2,figsize=(11.5,6), facecolor='white')
+
+    if stand == 'L':
+        ax1.plot(zone_dict['xLs'], zone_dict['yLs'], linestyle='-', linewidth=2, color='grey') 
+        ax2.plot(zone_dict['xLs'], zone_dict['yLs'], linestyle='-', linewidth=2, color='grey') 
+    elif stand == 'S':
+        ax1.plot(zone_dict['xRs'], zone_dict['yRs'], linestyle='-', linewidth=2, color='grey') 
+        ax2.plot(zone_dict['xLs'], zone_dict['yLs'], linestyle='-', linewidth=2, color='grey') 
+    else: 
+        ax1.plot(zone_dict['xRs'], zone_dict['yRs'], linestyle='-', linewidth=2, color='grey')
+        ax2.plot(zone_dict['xRs'], zone_dict['yRs'], linestyle='-', linewidth=2, color='grey')
+
+    ax1.set_xlim(-2.5,2.5)
+    ax1.set_ylim(0,5)
+    ax1.set_ylabel('Strike zone height')
+    ax1.set_xlabel('Distance from center of home plate')
+
+    ax2.set_xlim(-2.5,2.5)
+    ax2.set_ylim(0, 5)
+    ax2.set_ylabel('')
+    ax2.set_yticklabels([])
+    ax2.set_xlabel('Distance from center of home plate')
+    
+    plt.tight_layout()
+    
+    return (fig, ax1,ax2)
     
 
 def large_font():  
@@ -261,3 +317,19 @@ def cmapGyGn():
                           (1.0, 0.1, 0.1))}
     cmapGyGn = mpl.colors.LinearSegmentedColormap('my_colormap', cdictGyGn) 
     return cmapGyGn
+    
+def cmapBlRd(median):
+    """Diverging cmap blue->red centered on "median" value"""
+
+    cdictBlRdDvg = {'red': ((0.0, 0.15, 0.15),
+                         (median, 0.865, 0.865),
+                         (1.0, 0.706, 0.706)),
+                'blue': ((0.0, 0.706, 0.706),
+                          (median, 0.865, 0.865),
+                          (1.0, 0.016, 0.016)),
+                'green': ((0.0, 0.16, 0.16),
+                         (median, 0.865, 0.865),
+                         (1.0, 0.150, 0.150))}
+
+    cmBlRdDvg = mpl.colors.LinearSegmentedColormap('Bl_Rd_Diverging_CMAP', cdictBlRdDvg)
+    return cmBlRdDvg

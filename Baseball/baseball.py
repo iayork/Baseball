@@ -24,13 +24,21 @@ get_hits_pxpz(df, ptype=None):
 
 get_hits_DF(df, ptype=None):
 
-def get_bases_per_pitch(df, ptype=None): 
+def get_bases_per_pitch(df, ptype=None):
+
+get_babip(df, ptype=None): 
 
 """
 
 import pandas as pd
 import sqlite3 as sql
 import os.path
+
+def get_whip(df):
+    return ((df['H']) + (df['BB']))/(df['IP'])
+    
+def get_erip(df):
+    return df['ER']/df['IP']
 
 def pitch_pcts_per_game(df, ptypes):
     """ Pitch mix usage as percentages per game"""
@@ -44,14 +52,8 @@ def pitch_pcts_per_game(df, ptypes):
     usageDF = pd.DataFrame(usageD).T
     usageDF['Dates'] = ['%s-%s-%s' % (x.split('_')[2], 
                        x.split('_')[3], 
-                       x.split('_')[1][-2:]) for x in usageDF.index]
+                       x.split('_')[1][-2:]) for x in usageDF.index] 
     return usageDF
-
-def get_whip(df):
-    return ((df['H']) + (df['BB']))/(df['IP'])
-    
-def get_erip(df):
-    return df['ER']/df['IP']
 
 def get_gb(df):
     """Ground Ball Percentage (GB%) = Ground Balls / Balls in Play"""
