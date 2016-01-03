@@ -1,4 +1,128 @@
-#! /usr/bin/env python
+"""
+Download pitchF/X files from MLB.com, save to SQLite
+
+Class Parse_game takes a base URL, e.g. 
+        http://gd2.mlb.com/components/game/mlb/year_2015/month_08/day_23
+    
+    Completes the URL with the various xml files:
+        game.xml
+        linescore.xml
+        inning/inning/xml
+        players.xml
+        rawboxscore.xml
+        
+    Parses each to yield dataframes for 
+        game
+        boxscore
+        action
+        runner
+        player
+        coach
+        po
+        umpire
+        hip
+        atbat
+        pitch 
+    
+    Saves dataframes to SQL, making new tables or columns if necessary
+    
+    Functions:
+    
+    parse_game(self):
+        General game information.  
+        Linescore.xml provides most of the info; game.xml provides the rest
+        Even for a rainout/cancelled game, there should be some game info
+        Sometimes a gameday_link goes nowhere = no game info at all.  In this case,
+        return False and don't try to collect any pitch, atbat, player, etc info 
+        
+            
+    parse_boxscore(self):
+        The inning-by-inning boxscore
+        PITCHr/x does not download this, but it might be useful
+        
+    parse_player_coach_umpires(self):
+        Contains player, coach, and umpire information for the game
+        Generate 3 separate dataframes from the xml file
+        Each dataframe parsed separately (parse_player, parse_coach, parse_umpire)
+        
+        
+    parse_player_id_to_name(self):
+        Takes the "player" subsection from the parsed "player.xml" file
+                
+    parse_player(self, player):
+        
+    parse_coach(self, coach): 
+        Takes the "coach" subsection from the parsed "player.xml" file
+            
+    parse_umpire(self, umpire): 
+        Takes the "umpire" subsection from the parsed "player.xml" file
+            
+    parse_hip(self):
+        Hits
+        
+    parse_ab_pitch_runner_action_po(self):
+        The inning/inning_all.xml files is broken into 5 dataframes:
+            atbat
+            pitch
+            runner
+            po
+            action
+        Each one is parsed separately from the original xml
+                        
+    parse_atbat(self, ab): 
+        Parses the "atbat" subsection from the parsed "inning/inning_all.xml" file
+
+    parse_pitch(self, ab):
+        Parses the "pitch" subsection from the parsed "inning/inning_all.xml" file
+        
+    parse_runner(self, ab):
+        Parses the "runner" subsection from the parsed "inning/inning_all.xml" file
+                
+    parse_action(self, act):
+        Parses the "action" subsection from the parsed "inning/inning_all.xml" file
+                
+    parse_po(self, ab):
+        Parses the "po" subsection from the parsed "inning/inning_all.xml" file
+        This could be empty/non-existent if there were no pitchouts in the game
+                
+    get_gameDF(self):
+        Return gameDF to check for minimal success 
+                
+    # ------------------- SQL functions -------------------------           
+    update_sql(self, df, name, con):
+        Update SQLite database; alter table to add new columns if needed
+    
+    save_all(self, con):
+        Save each dataframe to SQLite
+        Empty dataframes are possible and valid (e.g. for rainouts, only gameDF
+        might be present) so just return error info without stopping the saves
+        
+Functions:
+
+parse_gdls(gdl):  
+    Download and parse game information using the Parse_game class
+
+collect_gameday_urls(day_url): 
+    Collect gameday_links and pass them on for parsing
+                
+write_to_sqlite(results): 
+    Collect scraping/parsing results and write to SQLite
+       
+def get_ymd():
+    Ask for input on year, day/month to start with
+    
+main()
+    Set the base URL for the year
+    Get URLs for all months in a year
+    loop through months, get URLs for each day
+        Multiprocess - Collect gameday_links from days
+        Multiprocess - download & parse gamedays in groups of 50
+            Multiprocess - write to SQL
+        Check if all games are written to SQLite
+    Remove duplicate rows via pandas
+    Save to SQLite
+    
+"""
 
 import lxml
 import requests
@@ -249,14 +373,13 @@ class Parse_game():
                 self.runnerDF = pd.DataFrame(rnD, index=(0,))
                 
     def parse_action(self, act):
-        """ Parses the "action" subsection from the parsed "inning/inning_all.xml" file
-        """
-            actD = dict(act.attrib) 
-            actD['Gameday_link'] = self.gdl
-            try:
-                self.actionDF = self.actionDF.append(pd.DataFrame(actD, index=(0,))) 
-            except AttributeError:
-                self.actionDF = pd.DataFrame(actD, index=(0,))
+        """ Parses the "action" subsection from the parsed "inning/inning_all.xml" file"""
+        actD = dict(act.attrib) 
+        actD['Gameday_link'] = self.gdl
+        try:
+            self.actionDF = self.actionDF.append(pd.DataFrame(actD, index=(0,))) 
+        except AttributeError:
+            self.actionDF = pd.DataFrame(actD, index=(0,))
                 
     def parse_po(self, ab):
         """ Parses the "po" subsection from the parsed "inning/inning_all.xml" file
