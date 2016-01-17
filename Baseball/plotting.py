@@ -31,6 +31,14 @@ def basic_plot_batter(stand, year=2015):
     Two charts, one for LHP, one for RHP
     Plot the de facto strike zone for the year on each plot 
     
+scatter_with_hover(df, x, y,
+                       fig=None, cols=None, name=None, marker='x',
+                       fig_width=500, fig_height=500, **kwargs):
+                       
+    http://blog.rtwilson.com/bokeh-plots-with-dataframe-based-tooltips/
+    Plots an interactive scatter plot of `x` vs `y` using bokeh, with automatic
+    tooltips showing columns from `df`.
+    
 large_font():   
     16pt dimgray sans normal 
 
@@ -60,7 +68,7 @@ from matplotlib import pyplot as plt
 
 """A dict of seaborn colors suitable for plotting various pitch types """
 muted = sb.color_palette('muted') 
-set2 = sb.color_palette('muted')    
+set2 = sb.color_palette('Set2')    
 ptype_clrs = {  'FF':muted[2], 
                 'FT':muted[0], 
                 'CU':muted[1],  
@@ -69,7 +77,8 @@ ptype_clrs = {  'FF':muted[2],
                 'SL':muted[3], 
                 'FC':muted[4], 
                 'FO':set2[1],
-                'SI':muted[4]}
+                'SI':muted[0],
+                'FS':set2[1]}
     
     
 def pitch_char_3panel(df):
@@ -205,8 +214,108 @@ def basic_layout_pitcher_2(year=2015):
     
     plt.tight_layout()
     
-    return (fig, ax1, ax2) 
+    return (fig, ax1, ax2)  
     
+    
+def basic_layout_pitcher_8(year=2015): 
+    """
+    Visualize the strike zone from the umpire's view for a pitcher
+    Four rows of 2 charts, one for LHB, one for RHB
+    Plot the de facto strike zone for the year on each plot """
+    
+    from Baseball import strikezone 
+    zone_dict = strikezone.get_50pct_zone(year) 
+    
+    fig, ((ax1, ax2),(ax3,ax4),
+          (ax5,ax6),(ax7,ax8)) = plt.subplots(4,2,figsize=(8,16), facecolor='white')
+    # Plot the strike zone on each plot
+    for ax in (ax1,ax3,ax5,ax7):
+        ax.plot(zone_dict['xLs'], zone_dict['yLs'], linewidth=2, color='grey') 
+        ax.set_ylabel('Height (feet)')
+    for ax in (ax2,ax4,ax6,ax8):
+        ax.plot(zone_dict['xRs'], zone_dict['yRs'], linewidth=2, color='grey')  
+        ax.set_ylabel('')
+        ax.set_yticklabels([])
+    
+    for ax in (ax1, ax2, ax3,ax4,ax5,ax6,ax7,ax8):
+        ax.set_ylim(0,5) 
+        ax.set_xlim(-2.5,2.5) 
+    for ax in (ax1, ax2, ax3,ax4,ax5,ax6):
+        ax.set_xticklabels([]) 
+    for ax in (ax7,ax8):
+        ax.set_xlabel('Distance from center of plate (feet)') 
+    
+    ax1.text(-2.3, 0.2, '@soshbaseball', fontsize=12, alpha=0.8)
+
+    plt.tight_layout()
+    return (fig,ax1,ax2, ax3,ax4,ax5,ax6,ax7,ax8)
+
+    
+    
+def basic_layout_pitcher_10(year=2015): 
+    """
+    Visualize the strike zone from the umpire's view for a pitcher
+    Five rows of 2 charts, one for LHB, one for RHB
+    Plot the de facto strike zone for the year on each plot """
+    
+    from Baseball import strikezone 
+    zone_dict = strikezone.get_50pct_zone(year) 
+    
+    fig, ((ax1, ax2),(ax3,ax4),
+          (ax5,ax6),(ax7,ax8),(ax9,ax10)) = plt.subplots(5,2,figsize=(8,20), facecolor='white')
+    # Plot the strike zone on each plot
+    for ax in (ax1,ax3,ax5,ax7,ax9):
+        ax.plot(zone_dict['xLs'], zone_dict['yLs'], linewidth=2, color='grey') 
+        ax.set_ylabel('Height (feet)')
+    for ax in (ax2,ax4,ax6,ax8,ax10):
+        ax.plot(zone_dict['xRs'], zone_dict['yRs'], linewidth=2, color='grey')  
+        ax.set_ylabel('')
+        ax.set_yticklabels([])
+    
+    for ax in (ax1, ax2, ax3,ax4,ax5,ax6,ax7,ax8,ax9,ax10):
+        ax.set_ylim(0,5) 
+        ax.set_xlim(-2.5,2.5) 
+    for ax in (ax9,ax10):
+        ax.set_xlabel('Distance from center of plate (feet)') 
+    
+    ax1.text(-2.3, 0.2, '@soshbaseball', fontsize=12, alpha=0.8)
+
+    plt.tight_layout()
+    return (fig,ax1,ax2, ax3,ax4,ax5,ax6,ax7,ax8,ax9,ax10)
+    
+    
+def basic_layout_pitcher_12(year=2015): 
+    """
+    Visualize the strike zone from the umpire's view for a pitcher
+    Six rows of 2 charts, one for LHB, one for RHB
+    Plot the de facto strike zone for the year on each plot """
+    
+    from Baseball import strikezone 
+    zone_dict = strikezone.get_50pct_zone(year) 
+    
+    fig, ((ax1, ax2),(ax3,ax4),(ax5,ax6),
+          (ax7,ax8),(ax9,ax10),(ax9,ax10)) = plt.subplots(6,2,figsize=(8,20), facecolor='white')
+    # Plot the strike zone on each plot
+    for ax in (ax1,ax3,ax5,ax7,ax9,ax11):
+        ax.plot(zone_dict['xLs'], zone_dict['yLs'], linewidth=2, color='grey') 
+        ax.set_ylabel('Height (feet)')
+    for ax in (ax2,ax4,ax6,ax8,ax10,ax12):
+        ax.plot(zone_dict['xRs'], zone_dict['yRs'], linewidth=2, color='grey')  
+        ax.set_ylabel('')
+        ax.set_yticklabels([])
+    
+    for ax in (ax1, ax2, ax3,ax4,ax5,ax6,ax7,ax8,ax9,ax10,ax11,ax12):
+        ax.set_ylim(0,5) 
+        ax.set_xlim(-2.5,2.5) 
+    for ax in (ax11,ax12):
+        ax.set_xlabel('Distance from center of plate (feet)') 
+    
+    ax1.text(-2.3, 0.2, '@soshbaseball', fontsize=12, alpha=0.8)
+
+    plt.tight_layout()
+    return (fig,ax1,ax2, ax3,ax4,ax5,ax6,ax7,ax8,ax9,ax10,ax11,ax12)
+
+
 def basic_plot_batter(stand, year=2015):
     """
     Visualize the strike zone from the umpire's view for a batter
@@ -333,3 +442,90 @@ def cmapBlRd(median):
 
     cmBlRdDvg = mpl.colors.LinearSegmentedColormap('Bl_Rd_Diverging_CMAP', cdictBlRdDvg)
     return cmBlRdDvg
+    
+from bokeh.plotting import figure, ColumnDataSource
+from bokeh.models import HoverTool
+
+
+def scatter_with_hover(df, x, y,
+                       fig=None, cols=None, name=None, marker='x',
+                       fig_width=500, fig_height=500, **kwargs):
+    """
+    http://blog.rtwilson.com/bokeh-plots-with-dataframe-based-tooltips/
+    Plots an interactive scatter plot of `x` vs `y` using bokeh, with automatic
+    tooltips showing columns from `df`.
+
+    Parameters
+    ----------
+    df : pandas.DataFrame
+        DataFrame containing the data to be plotted
+    x : str
+        Name of the column to use for the x-axis values
+    y : str
+        Name of the column to use for the y-axis values
+    fig : bokeh.plotting.Figure, optional
+        Figure on which to plot (if not given then a new figure will be created)
+    cols : list of str
+        Columns to show in the hover tooltip (default is to show all)
+    name : str
+        Bokeh series name to give to the scattered data
+    marker : str
+        Name of marker to use for scatter plot
+    **kwargs
+        Any further arguments to be passed to fig.scatter
+
+    Returns
+    -------
+    bokeh.plotting.Figure
+        Figure (the same as given, or the newly created figure)
+
+    Example
+    -------
+    fig = scatter_with_hover(df, 'A', 'B')
+    show(fig)
+
+    fig = scatter_with_hover(df, 'A', 'B', cols=['C', 'D', 'E'], marker='x', color='red')
+    show(fig)
+
+    Author
+    ------
+    Robin Wilson <robin@rtwilson.com>
+    with thanks to Max Albert for original code example
+    """
+
+    # If we haven't been given a Figure obj then create it with default
+    # size etc.
+    if fig is None:
+        fig = figure(width=fig_width, height=fig_height, tools=['box_zoom', 'reset'])
+
+    # We're getting data from the given dataframe
+    source = ColumnDataSource(data=df)
+
+    # We need a name so that we can restrict hover tools to just this
+    # particular 'series' on the plot. You can specify it (in case it
+    # needs to be something specific for other reasons), otherwise
+    # we just use 'main'
+    if name is None:
+        name = 'main'
+
+    # Actually do the scatter plot - the easy bit
+    # (other keyword arguments will be passed to this function)
+    fig.scatter(df[x], df[y], source=source, name=name, marker=marker, **kwargs)
+
+    # Now we create the hover tool, and make sure it is only active with
+    # the series we plotted in the previous line
+    hover = HoverTool(names=[name])
+
+    if cols is None:
+        # Display *all* columns in the tooltips
+        hover.tooltips = [(c, '@' + c) for c in df.columns]
+    else:
+        # Display just the given columns in the tooltips
+        hover.tooltips = [(c, '@' + c) for c in cols]
+
+    hover.tooltips.append(('index', '$index'))
+
+    # Finally add/enable the tool
+    fig.add_tools(hover)
+
+    return fig

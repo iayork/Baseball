@@ -23,7 +23,7 @@ bbref_date_to_gdl_date(bbref_date, year):
     usage: bbref_date_to_gdl_date(bbref_date, year)
     year default = 2015
     
-get_ip(s):
+convert_bbref_ip(s):
     convert series containing innings pitched in ".1", ".2" format 
     to ".33", ".67" format 
     
@@ -62,7 +62,7 @@ def get_pitchab(con, reg=True):
         pitchab = pitchab[pitchab['gameday_link'].isin(reg_gdls)]
         
     drop_cols = [x for x in pitchab.columns if '_duplicate_delete' in x]
-    for param in ('break_angle', 'break_length','break_y', 'event_num'):
+    for param in ('break_angle', 'break_length','break_y'):
         pitchab[param] = pd.to_numeric(pitchab[param]) 
     return pitchab.drop(drop_cols, axis=1)
     
@@ -91,10 +91,12 @@ def get_pitchab_for_pitcher(pitcher_name, con, reg=True):
         reg_gdls_df = pd.read_sql(game_sql, con) 
         reg_gdls = ['gid_%s' % x for x in reg_gdls_df['gameday_link'].values]
         pitchab = pitchab[pitchab['gameday_link'].isin(reg_gdls)]
+    for param in ('break_angle', 'break_length','break_y'):
+        pitchab[param] = pd.to_numeric(pitchab[param]) 
     return pitchab  
 
     
-def bbref_date_to_gdl_date(bbref_date, year=2015):
+def bbref_date_to_gdl_date(bbref_date, year):
     """ 
     take date in format "Apr 8" or "Jul 7(1)" and convert to "04-08-15" format
     usage: bbref_date_to_gdl_date(bbref_date, year)
@@ -118,7 +120,7 @@ def bbref_date_to_gdl_date(bbref_date, year=2015):
     return new_date
     
     
-def get_bbref_pitch(url):
+def get_bbref_pitch(url, year=2015):
     """ 
     returns a pandas dataframe containing bbref info (not all numeric?)
     usage get_bbref(url)
@@ -132,26 +134,33 @@ def get_bbref_pitch(url):
     data = r.text
     soup = BeautifulSoup(data, 'lxml')
     tbl = soup.find('table', id='pitching_gamelogs')
-    bbref = pd.read_html(str(tbl))[0]
-    bbref = bbref[bbref['Gcar']!='Tm']
+    bbref = pd.read_html(str(tbl))[0] 
+    # Drop the last row = summary row
+    bbref = bbref.iloc[:-1] 
+    try:
+        bbref = bbref[bbref['Gcar'] != 'Tm']
+    except TypeError:
+        pass 
     bbref = bbref.dropna(subset=['Gcar',], axis=0)
     for param in bbref.columns:
         bbref[param] = pd.to_numeric(bbref[param], errors='ignore')
     
-    bbref['GDL_Date'] = bbref['Date'].apply(lambda x:bbref_date_to_gdl_date(x))
+    bbref['GDL_Date'] = bbref['Date'].apply(lambda x:bbref_date_to_gdl_date(x, year))
+    bbref['IP'] = bbref['IP'].apply(convert_bbref_ip)
     
     bbref['WHIP'] = baseball.get_whip(bbref)
     bbref['ERIP'] = baseball.get_erip(bbref)
+    
         
     return bbref 
                              
     
-def get_ip(s):
+def convert_bbref_ip(x):
     """ 
     convert series containing innings pitched in ".1", ".2" format 
     to ".33", ".67" format
     """  
-    return [(round(int(x)) + (x-round(int(x)))/0.3) for x in s]
+    return round(int(x)) + (x-round(int(x)))/0.3
 
     
 def pitch_abbrs():

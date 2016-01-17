@@ -87,7 +87,7 @@ def get_outs(df, ptype):
             ((p['des'].str.contains('In play, run')) & (p['event'].str.contains('Sac Bunt'))) |
             ((p['des'].str.contains('In play, run')) & (p['event'].str.contains('nterference'))) |
             ((p['des'].str.contains('In play, run')) & (p['event'].str.contains('Double Play'))) ]
-    return (df2['px'].values, df2['pz'].values)
+    return (df2)
 
 def get_called(df, ptype):
     df2 = df[(df['des'].str.contains('Called Strike')) & (df['pitch_type']==ptype)]
