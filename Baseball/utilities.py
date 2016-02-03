@@ -126,7 +126,7 @@ def get_bbref_pitch(url, year=2015):
     usage get_bbref(url)
     """
     
-    from Baseball import baseball
+    import Baseball
     import requests
     from bs4 import BeautifulSoup 
     
@@ -148,8 +148,8 @@ def get_bbref_pitch(url, year=2015):
     bbref['GDL_Date'] = bbref['Date'].apply(lambda x:bbref_date_to_gdl_date(x, year))
     bbref['IP'] = bbref['IP'].apply(convert_bbref_ip)
     
-    bbref['WHIP'] = baseball.get_whip(bbref)
-    bbref['ERIP'] = baseball.get_erip(bbref)
+    bbref['WHIP'] = Baseball.get_whip(bbref)
+    bbref['ERIP'] = Baseball.get_erip(bbref)
     
         
     return bbref 

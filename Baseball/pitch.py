@@ -5,32 +5,44 @@ def pitch_flight(df_row):
     Take a single row of a pitchfx dataframe (i.e. a Series)
     Calculate the x, y, z positions for each timepoint t
     Return a dictionary containing lists of each parameter
+    
+    
+def speed_at_feet(df, feet=55): 
+    PITCHf/x start_speed is at 50 feet from home plate
+    Calculate pitch speed at any distance from the plate 
+    Default = 55 feet (Brooks Baseball style)
+    Usage: For a PITCHf/x dataframe df
+    df['Speed55'] = df.apply(speed_at_feet, axis=1)
+    or
+    df['Speed15'] = speed_at_feet(df, feet=15) 
 """
 
 import pandas as pd 
 import numpy as np
 from math import sqrt
-    
+
+
 def pitch_flight(df_row): 
     """
     Calculate the x, y, z positions for each timepoint t
     Return a dictionary containing lists of each parameter
     
     """ 
-    assert isinstance(df_row, pd.Series), "Must pass a Series (one dataframe row)"
+    assert isinstance(df_row, pd.DataFrame), "Must pass one dataframe row"
+    assert len(df_row)==1, "Must pass one dataframe row"
     
     y0 = 50  
     az_noair = -32.174 
     ax_noair = 0 
     
-    vy0 = df_row['vy0']
-    vx0 = df_row['vx0']  
-    vz0 = df_row['vz0']  
-    ay = df_row['ay'] 
-    az = df_row['az']
-    ax = df_row['ax']
-    z0 = df_row['z0']
-    x0 = df_row['x0']
+    vy0 = df_row.iloc[0]['vy0']
+    vx0 = df_row.iloc[0]['vx0']  
+    vz0 = df_row.iloc[0]['vz0']  
+    ay = df_row.iloc[0]['ay'] 
+    az = df_row.iloc[0]['az']
+    ax = df_row.iloc[0]['ax']
+    z0 = df_row.iloc[0]['z0']
+    x0 = df_row.iloc[0]['x0']
 
     z_time = [] 
     y_time = []
@@ -83,3 +95,18 @@ def pitch_flight(df_row):
             'mphend':mphend,
             'ptype':df_row['pitch_type'],
             'stand':df_row['stand']}
+            
+    
+def speed_at_feet(df, feet=55):
+    """
+    Calculate pitch speed at any distance from the plate (default = 55 feet)
+    Usage: For a PITCHf/x dataframe df
+    df['Speed55'] = df.apply(speed_at_feet, axis=1)
+    or
+    df['Speed15'] = speed_at_feet(df, feet=15)
+    """
+    y0 = 50  
+    vy_feet = -(np.sqrt(df['vy0']*df['vy0'] + 2*df['ay'] * (feet - y0)))
+    mph_feet = -(vy_feet * 60*60)/5280.0 
+            
+    return mph_feet

@@ -26,10 +26,25 @@ basic_layout_pitcher_2(year=2015):
     Two charts, one for LHB, one for RHB (one pitch type only)
     Plot the de facto strike zone for the year on each plot 
     
-def basic_plot_batter(stand, year=2015): 
+basic_layout_pitcher_4(year=2015)
+basic_layout_pitcher_6(year=2015)
+basic_layout_pitcher_8(year=2015)
+basic_layout_pitcher_10(year=2015)
+    
+basic_plot_batter(stand, year=2015): 
     Visualize the strike zone from the umpire's view for a batter
     Two charts, one for LHP, one for RHP
     Plot the de facto strike zone for the year on each plot 
+    
+plot_3D(df, ptypes=None, output_dir='/Users/iayork/Downloads', output_folder='ptch3D'):
+    3D scatter plot of pitches, colored by pitch type
+    Generates a series of plots, rotating 5 o each time (convert to GIF using ImageMacgick)
+    
+    Input: Dataframe containing PITCHf/x data
+    Optional:
+        ptypes: If only want to plot a subset of the pitch types in the dataframe
+        output_dir, output_folder - Where to save the output charts 
+    
     
 scatter_with_hover(df, x, y,
                        fig=None, cols=None, name=None, marker='x',
@@ -79,6 +94,50 @@ ptype_clrs = {  'FF':muted[2],
                 'FO':set2[1],
                 'SI':muted[0],
                 'FS':set2[1]}
+                
+
+def animation_3_views():  
+    fig = plt.figure(figsize=(25,12.5))
+    
+    gs = gridspec.GridSpec(3, 3,
+                       width_ratios=[12,12,4],
+                       height_ratios=[1,1,4]
+                       )
+    gs.update(hspace=0.05, wspace=0.05)
+    
+    ax1 = plt.subplot(gs[0, 1])
+    ax2 = plt.subplot(gs[1, 1])
+    ax3 = plt.subplot(gs[0:2, 2]) 
+    
+    zone_dict = utilities.get_50pct_zone(year)
+    ax3.plot(zone_dict['xRs'], zone_dict['yRs'], linestyle='-', linewidth=1, color=dark[0])  
+
+    ax1.set_ylim(-3.2,1.8)  # -2.5, 2.5
+    ax1.set_xlim(65,0)  
+    ax1.set_xlabel('') 
+    ax1.set_xticklabels([])
+    ax1.set_ylabel("Feet from center of plate", fontsize=10) 
+    ax1.tick_params(axis='both', which='major', labelsize=10)
+    ax1.set_title('Top view', fontsize=12)
+    
+    ax2.set_ylim(0,7.0) 
+    ax2.set_xlim(65,0)  
+    ax2.set_xlabel("Feet from home plate", fontsize=10)
+    ax2.tick_params(axis='both', which='major', labelsize=10)
+    ax2.set_ylabel("Feet above plate", fontsize=10)  
+    ax2.text(34.7, 6.1, "Side view", fontsize=12) 
+    ax2.text(59, 0.4, "@soshbaseball", fontsize=10, alpha=0.8)
+    
+    ax3.set_ylim(0, 7.0) 
+    ax3.set_xlim(-3.2,1.8)  # -2.5, 2.5  
+    ax3.yaxis.tick_right()
+    ax3.set_xlabel("Feet from center of plate", fontsize=10) 
+    ax3.set_ylabel('Feet above plate', fontsize=10)
+    ax3.yaxis.set_label_position("right")
+    ax3.tick_params(axis='both', which='major', labelsize=10)
+    ax3.set_title("Umpire's view", fontsize=12)
+    
+    return (fig, ax1, ax2, ax3)
     
     
 def pitch_char_3panel(df):
@@ -214,7 +273,80 @@ def basic_layout_pitcher_2(year=2015):
     
     plt.tight_layout()
     
-    return (fig, ax1, ax2)  
+    return (fig, ax1, ax2)   
+
+  
+    
+    
+def basic_layout_pitcher_4(year=2015):
+    """
+    Visualize the strike zone from the umpire's view for a pitcher
+    Four charts, two for LHB, two for RHB 
+    Plot the de facto strike zone for the year on each plot """
+
+    from Baseball import strikezone 
+    zone_dict = strikezone.get_50pct_zone(year) 
+
+    fig, ((ax1, ax2),(ax3,ax4)) = plt.subplots(2,2,figsize=(11.5,12), facecolor='white')
+    
+    ax1.plot(zone_dict['xLs'], zone_dict['yLs'], linestyle='-', linewidth=1, color='dimgrey') 
+    ax2.plot(zone_dict['xRs'], zone_dict['yRs'], linestyle='-', linewidth=1, color='dimgrey') 
+    ax3.plot(zone_dict['xLs'], zone_dict['yLs'], linestyle='-', linewidth=1, color='dimgrey') 
+    ax4.plot(zone_dict['xRs'], zone_dict['yRs'], linestyle='-', linewidth=1, color='dimgrey') 
+    
+    ax1.set_title('LHB')
+    ax2.set_title('RHB')
+    for ax in (ax1,ax2,ax3,ax4):
+        ax.set_ylim(0, 5.0) 
+        ax.set_xlim(-2.5,2.5) 
+    for ax in (ax1,ax2):
+        ax.set_xticklabels([])
+        ax.set_xlabel('')
+    for ax in (ax3,ax4):
+        ax.set_xlabel("Feet from center of plate", fontsize=14) 
+    for ax in (ax1,ax3):
+        ax.set_ylabel('Feet above plate', fontsize=14)
+    
+    plt.tight_layout()
+    
+    return (fig, ax1, ax2, ax3, ax4) 
+    
+    
+def basic_layout_pitcher_6(year=2015):
+    """
+    Visualize the strike zone from the umpire's view for a pitcher
+    Six charts, three for LHB, three for RHB 
+    Plot the de facto strike zone for the year on each plot """
+
+    from Baseball import strikezone 
+    zone_dict = strikezone.get_50pct_zone(year) 
+
+    fig, ((ax1, ax2),(ax3,ax4),(ax5,ax6)) = plt.subplots(3,2,figsize=(11.5,16), facecolor='white')
+    
+    for ax in (ax1,ax3,ax5):
+        ax.plot(zone_dict['xLs'], zone_dict['yLs'], linestyle='-', linewidth=1, color='dimgrey') 
+        ax.set_ylim(0, 7.0) 
+        ax.set_xlim(-2.5,2.5)
+        ax.set_ylabel('Feet above plate', fontsize=14)
+    for ax in (ax2,ax4,ax6):
+        ax.plot(zone_dict['xRs'], zone_dict['yRs'], linestyle='-', linewidth=1, color='dimgrey')  
+        ax.set_ylim(0, 7.0) 
+        ax.set_xlim(-2.5,2.5)
+        ax2.set_yticklabels([])
+        ax2.set_ylabel('')   
+    for ax in (ax1,ax2,ax3,ax4):
+        ax.set_xlabel('')
+        ax.set_xticklabels([])
+     
+    ax5.set_xlabel("Feet from center of plate", fontsize=14) 
+    ax6.set_xlabel("Feet from center of plate", fontsize=14) 
+    ax1.set_title('LHB')
+    ax2.set_title('RHB')
+    
+    plt.tight_layout()
+    
+    return (fig,ax1,ax2,ax3,ax4,ax5,ax6)  
+    
     
     
 def basic_layout_pitcher_8(year=2015): 
@@ -275,6 +407,12 @@ def basic_layout_pitcher_10(year=2015):
     for ax in (ax1, ax2, ax3,ax4,ax5,ax6,ax7,ax8,ax9,ax10):
         ax.set_ylim(0,5) 
         ax.set_xlim(-2.5,2.5) 
+    for ax in (ax2, ax4, ax6, ax8, ax10):
+        ax.set_yticklabels([])
+        ax.set_ylabel('')
+    for ax in (ax1, ax2, ax3,ax4,ax5,ax6,ax7,ax8):
+        ax.set_xticklabels([])
+        ax.set_xlabel('')
     for ax in (ax9,ax10):
         ax.set_xlabel('Distance from center of plate (feet)') 
     
@@ -351,6 +489,82 @@ def basic_plot_batter(stand, year=2015):
     plt.tight_layout()
     
     return (fig, ax1,ax2)
+
+
+def plot_3D(df, ptypes=None, output_dir='/Users/iayork/Downloads', output_folder='ptch3D'):
+    """
+    3D scatter plot of pitches, colored by pitch type
+    Generates a series of plots, rotating 5 o each time (convert to GIF using ImageMacgick)
+    
+    Input: Dataframe containing PITCHf/x data
+    Optional:
+        ptypes: If only want to plot a subset of the pitch types in the dataframe
+        output_dir, output_folder - Where to save the output charts 
+    
+    """
+    from math import floor, ceil
+    import os
+    import Baseball
+    ptype_clrs = Baseball.ptype_clrs
+    
+    try:
+        folder = os.path.join(output_dir, output_folder)
+        os.mkdir(folder)
+    except OSError:
+        pass  
+        
+    min_speed = floor(df['start_speed'].min()/10)*10
+    max_speed = ceil(df['start_speed'].max()/10)*10
+    
+    if ptypes == None:
+        ptypes = df['pitch_type'].unique()
+
+    ax1 = plt.subplot(111, projection='3d', axisbg='white')
+    #ax1.set_zlim(min_speed, max_speed)
+    f = 0
+    az = 0
+    label = True
+    pos = True
+    
+    while True:
+        i = 0
+        for ptype in ptypes:
+            if label:
+                ax1.scatter(xs=df[df['pitch_type']==ptype]['pfx_x'],
+                            ys=df[df['pitch_type']==ptype]['pfx_z'], 
+                            zs=df[df['pitch_type']==ptype]['start_speed'],
+                            c=ptype_clrs[ptype], alpha=0.6, s=50, 
+                            label=ptype)
+            else:
+                ax1.scatter(xs=df[df['pitch_type']==ptype]['pfx_x'],
+                            ys=df[df['pitch_type']==ptype]['pfx_z'], 
+                            zs=df[df['pitch_type']==ptype]['start_speed'],
+                            c=ptype_clrs[ptype], alpha=0.6, s=50)
+            i += 1
+        label = False
+
+        ax1.set_xlabel('\nHorizontal movement')
+        ax1.set_ylabel('\nVertical movement')
+        ax1.set_zlabel('\nSpeed')
+
+        ax1.view_init(elev=20, azim=az)
+        if pos:
+            az += 5
+            if az >= 90:
+                pos = False
+        else:
+            az -= 5
+            if az < 0:
+                break
+    
+        ax1.legend(bbox_to_anchor=(1,1)) ; 
+        f += 1 
+        plt.savefig(os.path.join(output_dir, output_folder, '3D_chars%02d.png' % f), 
+                    bbox_inches='tight', 
+                    pad_inches=0.2, 
+                    dpi=200)
+
+
     
 
 def large_font():  
