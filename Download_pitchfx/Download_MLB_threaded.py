@@ -186,6 +186,7 @@ class Parse_game():
             Sometimes a gameday_link goes nowhere = no game info at all.  In this case,
             return False and don't try to collect any pitch, atbat, player, etc info 
         """
+        # Start with linescore.xml and generate a dictionary of values gameD
         try:
             tree = etree.parse('%s%s' % (self.gameday_url, 'linescore.xml'))
             game = tree.getroot() 
@@ -194,7 +195,8 @@ class Parse_game():
             #raise
             #print (self.gdl, '%s%s' % (self.gameday_url, 'linescore.xml'))
             return False 
-            
+        
+        # Then update gameD with extra information in game.xml
         try:
             tree = etree.parse('%s%s' % (self.gameday_url, 'game.xml'))
             game_gm = tree.getroot() 
@@ -203,7 +205,7 @@ class Parse_game():
         except OSError: 
             pass   # Rainouts - "game" file be empty even though "linescore" exists  
         
-        
+        # Convert dict to df self.gameDF
         try:
             self.gameDF = self.gameDF.append(pd.DataFrame(gameD, index=(0,)))
         except AttributeError: 
@@ -238,6 +240,7 @@ class Parse_game():
         """ Contains player, coach, and umpire information for the game
             Generate 3 separate dataframes from the xml file
             Each dataframe parsed separately (parse_player, parse_coach, parse_umpire)
+            Indirectly yields playerDF, coachDF, umpireDF
         """
         tree = etree.parse('%s%s' % (self.gameday_url, 'players.xml'))
         for team in tree.iterfind('team'):
@@ -251,13 +254,12 @@ class Parse_game():
                 
         self.parse_player_id_to_name()
         
-    def parse_player_id_to_name(self):
-        """ Takes the "player" subsection from the parsed "player.xml" file
-        """
+    def parse_player_id_to_name(self): 
         self.id_to_nameD = {x[0]:'%s %s' % (x[1], x[2])
                             for x in self.playerDF[['id','first','last']].values}
                 
     def parse_player(self, player):
+        """ Called by parse_player_coach_umpires and yields playerDF"""
         playerD = dict(player.attrib) 
         playerD['Gameday_link'] = self.gdl
         try:
@@ -266,7 +268,8 @@ class Parse_game():
             self.playerDF = pd.DataFrame(playerD, index=(0,))
         
     def parse_coach(self, coach): 
-        """ Takes the "coach" subsection from the parsed "player.xml" file
+        """ Called by parse_player_coach_umpires and yields coachDF
+            Takes the "coach" subsection from the parsed "player.xml" file
         """
         coachD = dict(coach.attrib) 
         coachD['Gameday_link'] = self.gdl
@@ -276,7 +279,8 @@ class Parse_game():
             self.coachDF = pd.DataFrame(coachD, index=(0,))
             
     def parse_umpire(self, umpire): 
-        """ Takes the "umpire" subsection from the parsed "player.xml" file
+        """ Called by parse_player_coach_umpires and yields umpireDF
+            Takes the "umpire" subsection from the parsed "player.xml" file
         """
         umpireD = dict(umpire.attrib) 
         umpireD['Gameday_link'] = self.gdl
@@ -385,146 +389,120 @@ class Parse_game():
         """ Parses the "po" subsection from the parsed "inning/inning_all.xml" file
             This could be empty/non-existent if there were no pitchouts in the game
         """
-        num = ab.attrib['num'] 
+        num = ab.attrib['num']  
         for po in ab.iterfind('po'):  
             poD = dict(po.attrib)
             poD['num'] = num
-            poD['Gameday_link'] = self.gdl
+            poD['Gameday_link'] = self.gdl 
             try:
                 self.poDF = self.poDF.append(pd.DataFrame(poD, index=(0,)))
             except AttributeError: 
                 self.poDF = pd.DataFrame(poD, index=(0,))
+        try:
+            len(self.poDF)
+        except AttributeError:  # no poDF made
+            self.poDF = pd.DataFrame({'num':num, 'Gameday_link':self.gdl}, index=(0,))
+            
                 
 
     def get_gameDF(self):
         """ Return gameDF to check for minimal success 
         """
         return self.gameDF
+        
+    def get_dataframes(self):
+        print(len(self.atbatDF), len(self.poDF))
+        return {'game':     self.gameDF, 
+                'boxscore': self.boxscoreDF, 
+                'player':   self.playerDF, 
+                'coach':    self.coachDF, 
+                'umpire':   self.umpireDF, 
+                'atbat':    self.atbatDF, 
+                'pitch':    self.pitchDF, 
+                'runner':   self.runnerDF, 
+                'po':       self.poDF, 
+                'action':   self.actionDF, 
+                'hip':      self.hipDF}
                 
-    # ------------------- SQL functions -------------------------           
-    def update_sql(self, df, name, con):
-        """Update SQLite database; alter table to add new columns if needed"""
+
+    # --------------End of Parse_game class ----------------
+
+
+# ------------------- SQL functions -------------------------           
+def update_sql(df, df_name, con):
+    """Update SQLite database; alter table to add new columns if needed"""
+    try:
+        df.to_sql(df_name, if_exists='append', con=con, index=False)  
+    except OperationalError as oe: # No column exists?
+        error_info = oe.args[0]
+        if 'has no column named ' in error_info:
+            # Add the missing column to the table 
+            table = error_info.split()[1]
+            column_to_add = error_info.split()[-1]
+            alter_table = 'ALTER TABLE %s ADD COLUMN "%s" TEXT;' % (table, column_to_add) 
+            c = con.cursor()
+            c.execute(alter_table)
+            con.commit()
+            # Having updated the table, start updating again
+            update_sql(df, df_name, con) 
+        else:    
+            try:
+                # "index=False" seems problematic some times - Why?
+                # TODO - eliminate index that comes from dataframe?
+                df.to_sql(name, if_exists='append', con=con)  
+            except:
+                raise 
+
+def write_info_to_sql(dict_of_dataframes): 
+    con = sql.connect(os.path.join(dbFolder, 'PitchFX', 'MBL_Scrape_test_threaded.db'))
+    for df_name in dict_of_dataframes.keys(): 
+        df = dict_of_dataframes[df_name]
         try:
-            df.to_sql(name, if_exists='append', con=con, index=False)  
-        except OperationalError as oe: # No column exists?
-            error_info = oe.args[0]
-            if 'has no column named ' in error_info:
-                # Add the missing column to the table 
-                table = error_info.split()[1]
-                column_to_add = error_info.split()[-1]
-                alter_table = 'ALTER TABLE %s ADD COLUMN "%s" TEXT;' % (table, column_to_add) 
-                c = con.cursor()
-                c.execute(alter_table)
-                con.commit()
-                self.update_sql(df, name, con) 
-            else:    
-                try:
-                    # "index=False" seems problematic some times - Why?
-                    df.to_sql(name, if_exists='append', con=con)  
-                except:
-                    raise 
-    
-    def save_all(self, con):
-        """ Save each dataframe to SQLite
-            Empty dataframes are possible and valid (e.g. for rainouts, only gameDF
-            might be present) so just return error info without stopping the saves
-        """
-        saved = True
-        try:
-            self.update_sql(self.gameDF, 'game', con)
+            update_sql(df, df_name, con)
         except Exception as exc:  
             # If game is broken, don't try to save any more data
-            return exc.args[0]
-        try:
-            self.update_sql(self.boxscoreDF, 'boxscore', con)
-        except Exception as exc:  
-            saved = exc.args[0]
-        try:
-            self.update_sql(self.actionDF, 'action', con)
-        except Exception as exc:  
-            saved = exc.args[0]
-        try:
-            self.update_sql(self.runnerDF, 'runner', con)
-        except Exception as exc:  
-            saved = exc.args[0]
-        try:
-            self.update_sql(self.playerDF, 'player', con)
-        except Exception as exc:  
-            saved = exc.args[0]
-        try:
-            self.update_sql(self.coachDF, 'coach', con)
-        except Exception as exc:  
-            saved = exc.args[0]
-        try:
-            self.update_sql(self.poDF, 'po', con)
-        except Exception as exc:  
-            saved = exc.args[0]
-        try:
-            self.update_sql(self.umpireDF, 'umpire', con)
-        except Exception as exc:  
-            saved = exc.args[0]
-        try:
-            self.update_sql(self.hipDF, 'hip', con)
-        except Exception as exc:  
-            ssaved = exc.args[0]
-        try:
-            self.update_sql(self.atbatDF, 'atbat', con)
-        except Exception as exc:  
-            saved = exc.args[0]
-        try:
-            self.update_sql(self.pitchDF, 'pitch', con)
-        except Exception as exc:  
-            saved = exc.args[0]
-            
-        return saved
+            # TODO: Depending on exception, just add the game to list of bad games
+            # and continue.  There are legit reasons for empty games
+            raise  
+         
+            if saved != True:
+                bad_gdls[parser.gdl] = saved
+                #print (saved)
+    con.commit()
+    con.close()  
 
-# --------------End of Parse_game class ----------------
-
-                
-def parse_gdls(gdl):  
-    """Download and parse game information"""
-    parser = Parse_game(gdl) 
-    if parser.parse_game():  # parse_game returned True, therefore game exists
-        #print(parser.get_gameDF()['gameday_link'].values[0] )
-        try:
-            parser.parse_boxscore()
-            parser.parse_player_coach_umpires()
-            parser.parse_ab_pitch_runner_action_po()
-            parser.parse_hip()
-        except Exception as exc: 
-            raise
-            pass
-            #bad_gdls.append(': '.join([gdl, exc.args[0]])) 
-    else:
-        pass
-        #bad_gdls.append(': '.join([gdl, 'Failed to parse Game properly'])) 
-        
-    return parser 
-
-def collect_gameday_urls(day_url): 
-    """Collect gameday_links and pass them on for parsing"""
-    r = requests.get(day_url)
-    day = Soup(r.text, 'lxml')
-    return ['%s%s' % (day_url, a.attrs['href']) for a in day.findAll('a') if 'gid_' in a.text]
-                
-            
-def write_to_sqlite(results): 
-    """Collect scraping/parsing results and write to SQLite"""
+       
+def remove_duplicate_rows():
     
     con = sql.connect(os.path.join(dbFolder, 'PitchFX', 'MBL_Scrape_test_threaded.db'))
-    for parser in results: 
-        if parser.parse_game():
-            saved = parser.save_gameDF()
-            if saved:
-                parser.save_all()
-            
+    for table in ('action', 'coach', 'hip', 'pitch', 'po', 'umpire', 
+                  'atbat', 'game', 'boxscore', 'player', 'runner'):
+        try:
+            df = pd.read_sql("select * from %s" % table, con)
+            print ('Table %s before removing duplicates is %i rows' % (table, len(df)))
+            df.drop_duplicates(inplace=True)
+            print ('Table %s after removing duplicates is %i rows' % (table, len(df)))
+            df.to_sql(name=table, if_exists='replace', con=con)
+        except (OperationalError, DatabaseError):
+            pass
+
+def check_all_games_written(gameday_links):
+    con = sql.connect(os.path.join(dbFolder, 'PitchFX', 'MBL_Scrape_test_threaded.db'))
+    c = con.cursor()
+    try:
+        c.execute("""Select distinct gameday_link from game""")
+        sql_gdls = [x[0] for x in c.fetchall()]
+        con.close()
+        if set([x.strip('/').split('/')[-1].strip('gid_') for x in gameday_links]).issubset(set(sql_gdls)):
+            print ("Saved %i games for month %s, %s" % ( len(gameday_links), m, year_start))
         else:
-                bad_gdls[parser.gdl] = "Failed to parse correctly"
+            print ("Not saved to SQL: ")
+            print (set([x.strip('/').split('/')[-1].strip('gid_') for x in gameday_links]) - (set(sql_gdls)))
+    
+    except OperationalError:
+        pass
 
-    con.commit()
-    con.close() 
-
-                
+# ------------User input for start/end --------------                
 def get_ymd_from_input():
     """Ask for input on year, day/month to start with"""
     try:
@@ -581,55 +559,39 @@ def get_day_urls(year_url, month_url, month_start, month_end, day_start, day_end
     
     return day_urls 
     
-def write_info_to_sql(): 
-    con = sql.connect(os.path.join(dbFolder, 'PitchFX', 'MBL_Scrape_test_threaded.db'))
-    for parser in results: 
-        saved = parser.save_all(con) 
-        if saved != True:
-            bad_gdls[parser.gdl] = saved
-            #print (saved)
-
-
-    con.commit()
-    con.close() 
-
-
-    if (i+50) > len(gameday_links):
-        print ('Parsed and saved %i of %i games' % (len(gameday_links), len(gameday_links)))
-    else:   
-       print ('Parsed and saved %i of %i games' % ((i+50), len(gameday_links)))
-       
-def remove_duplicate_rows():
+# -------------- Other functions-------------------------
     
-    con = sql.connect(os.path.join(dbFolder, 'PitchFX', 'MBL_Scrape_test_threaded.db'))
-    for table in ('action', 'coach', 'hip', 'pitch', 'po', 'umpire', 
-                  'atbat', 'game', 'boxscore', 'player', 'runner'):
+def parse_gdls(gdl):  
+    """Download and parse game information"""
+    parser = Parse_game(gdl) 
+    if parser.parse_game():  # parse_game returned True, therefore game exists 
         try:
-            df = pd.read_sql("select * from %s" % table, con)
-            print ('Table %s before removing duplicates is %i rows' % (table, len(df)))
-            df.drop_duplicates(inplace=True)
-            print ('Table %s after removing duplicates is %i rows' % (table, len(df)))
-            df.to_sql(name=table, if_exists='replace', con=con)
-        except (OperationalError, DatabaseError):
+            parser.parse_boxscore()  # Yields boxscoreDF
+            parser.parse_player_coach_umpires()  # Yields playerDF, coachDF, umpireDF
+            # Yields atbatDF, pitchDF, runnerDF, poDF, actionDF
+            parser.parse_ab_pitch_runner_action_po() 
+            parser.parse_hip() # Yields hipDF
+        except Exception as exc: 
+            raise
             pass
-
-def check_all_games_written(gameday_links):
-    con = sql.connect(os.path.join(dbFolder, 'PitchFX', 'MBL_Scrape_test_threaded.db'))
-    c = con.cursor()
-    try:
-        c.execute("""Select distinct gameday_link from game""")
-        sql_gdls = [x[0] for x in c.fetchall()]
-        con.close()
-        if set([x.strip('/').split('/')[-1].strip('gid_') for x in gameday_links]).issubset(set(sql_gdls)):
-            print ("Saved %i games for month %s, %s" % ( len(gameday_links), m, year_start))
-        else:
-            print ("Not saved to SQL: ")
-            print (set([x.strip('/').split('/')[-1].strip('gid_') for x in gameday_links]) - (set(sql_gdls)))
-    
-    except OperationalError:
+            #bad_gdls.append(': '.join([gdl, exc.args[0]])) 
+    else:
         pass
+        #bad_gdls.append(': '.join([gdl, 'Failed to parse Game properly'])) 
+        
+    return parser.get_dataframes() # Returns a dictionary of df names : df
+    
 
-# ------------------- Start the main script ------------------------------------------
+def collect_gameday_urls(day_url): 
+    """Collect gameday_links and pass them on for parsing"""
+    r = requests.get(day_url)
+    day = Soup(r.text, 'lxml')
+    return ['%s%s' % (day_url, a.attrs['href']) for a in day.findAll('a') if 'gid_' in a.text]
+
+
+    
+
+# ======================= Main script ============================================
 def main():    
     (year_start, month_start, month_end, day_start, day_end) = get_ymd_from_input() 
     assert month_end >= month_start, "End month can't be earlier than start month"
@@ -662,14 +624,33 @@ def main():
             gameday_links.extend(gdls) 
         print('Collected %i gameday_link URLs; now parsing games' % len(gameday_links))
  
-        # ------------------- Multiprocess - download & parse gamedays in groups of 50 -----
+        # ------------------- Multiprocess - Download & parse gamedays in groups of 50 -----
         if len(gameday_links) >= 0:
             for i in range(0,len(gameday_links),50):
                 pool = Pool() 
                 results = pool.map(parse_gdls, gameday_links[i:i+50]) 
                 pool.close()  
+                
+                # results are a dictionary of dataframes 
+                #   {'game':    self.gameDF, 
+                #   'boxscore': self.boxscoreDF, 
+                #   'player':   self.playerDF, 
+                #   'coach':    self.coachDF, 
+                #   'umpire':   self.umpireDF, 
+                #   'atbat':    self.atbatDF, 
+                #   'pitch'     self.pitchDF, 
+                #   'runner':   self.runnerDF, 
+                #   'po':       self.poDF, 
+                #   'action':   self.actionDF, 
+                #   'hip':      self.hipDF}
     
                 write_info_to_sql(results)
+                
+                # Are we done?  Give feedback
+                if (i+50) > len(gameday_links):
+                    print ('Parsed and saved %i of %i games' % (len(gameday_links), len(gameday_links)))
+                else:   
+                   print ('Parsed and saved %i of %i games' % ((i+50), len(gameday_links)))
     
             # Check if all games are written to SQLite
             check_all_games_written(gameday_links)
