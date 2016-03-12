@@ -18,7 +18,18 @@ get_box_info(df)
              'pitches_in_zone_pct': (Percent of all pitches that are in each box) 
              'slgs': (total bases per hit in box)
              'hits': (total hits in box)
-             'hits_per_ptch': hits in box/pitches in box * percent of pitches in box
+             'hits_per_ptch': hits in box/pitches in box * percent of pitches in box 
+             
+    
+def get_strikes(df) 
+
+def get_hits(df)
+
+def get_swings_all(df) 
+                               
+def get_swinging_strikes_fouls(df)
+                               
+def get_swinging_strikes(df)
 
 """
 
@@ -28,7 +39,7 @@ import Baseball
 
 
 ptype_sets = {'Fastballs':['FT', 'FF','SI', 'FC','FA', 'FS','SI','FO'],
-              'Breaking pitches':['SL', 'CB', 'CU', 'KC','SC'],
+              'Breaking':['SL', 'CB', 'CU', 'KC','SC'],
               'Knuckleballs':['KN',], 
               'Offspeed':['CH','SF','EP']}
 
@@ -114,10 +125,17 @@ def get_strikes(df):
     return df[~(df['des'].isin(['Ball', 'Hit By Pitch', 'Ball In Dirt', 'Pitchout',
                                'Intent Ball', 'Automatic Ball']))] 
 
-def get_hits(df):
-    return df[~(df['des'].isin(['Ball', 'Hit By Pitch', 'Ball In Dirt', 'Pitchout',
-                               'Intent Ball', 'Automatic Ball']))] 
+def get_hits(df): 
+    return df[(df['des'].str.contains('In play') ) & 
+              (df['event'].isin(['Single','Double','Triple','Home Run']))]  
                                
-def get_swings(df):
+def get_swings_all(df):
     return df[~(df['des'].isin(['Ball', 'Hit By Pitch', 'Ball In Dirt', 'Pitchout',
                                 'Intent Ball', 'Automatic Ball', 'Called Strike']))] 
+                               
+def get_swinging_strikes_fouls(df):
+    return df[(df['des'].isin(['Foul', 'Swinging Strike', 'Foul (Runner Going)',
+                               'Swinging Strike (Blocked)', 'Foul Tip']))]
+                               
+def get_swinging_strikes(df):
+    return df[(df['des'].isin(['Swinging Strike', 'Swinging Strike (Blocked)']))] 

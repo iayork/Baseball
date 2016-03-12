@@ -10,6 +10,14 @@ pitch_char_3panel(df):
     break_length vs speed
     break_angle vs speed
     break_length vs break_length 
+    
+get_2D_pxpz_hist(df, rot=True, bins=10): 
+    Get a 2D histogram of px/pz values from a dataframe 
+    
+    For imshow and seaborn heatmaps at least, the hists need to be rotated 90 degrees
+                
+smooth_2D_hist(x,y,values):
+    Smooth 2D histogram using interpolation
 
 circle(x, y, s, ax, fc='white', ec='dimgray', vmin=None, vmax=None, **kwargs)
     For drawing the circles in Batter's Strike Zones by SLG
@@ -94,6 +102,42 @@ ptype_clrs = {  'FF':muted[2],
                 'FO':set2[1],
                 'SI':muted[0],
                 'FS':set2[1]}
+    
+
+def get_2D_pxpz_hist(df, rot=True, bins=10):
+    """
+    Get a 2D histogram of px/pz values from a dataframe 
+    
+    For imshow and seaborn heatmaps at least, the hists need to be rotated 90 degrees
+    """ 
+    
+    import numpy as np
+    from scipy import ndimage 
+    
+    hmap, xedges, yedges = np.histogram2d(x=df['px'].values, 
+                                        y=df['pz'].values,
+                                        range=[[-2.5, 2.5], [0, 5]],
+                                        bins=bins)
+    extent = [xedges[0], xedges[-1], yedges[0], yedges[-1]]
+    
+    if rot:
+        return (extent, ndimage.rotate(hmap, 90, reshape=False))
+    else: 
+        return (extent, hmap)   
+                
+
+def smooth_2D_hist(x,y,values):
+    """ Smooth 2D histogram using interpolation"""
+    
+    from scipy import interpolate
+    import numpy as np
+    
+    f = interpolate.interp2d(x[:-1], y[:-1], values)
+    xnew = np.arange(min(x), max(x), 0.03)
+    ynew = np.arange(min(y), max(y), 0.03)
+    knew = f(xnew, ynew)
+    return (xnew, ynew, knew)
+    
                 
 
 def animation_3_views():  
@@ -259,9 +303,9 @@ def basic_layout_pitcher_2(year=2015):
     ax1.plot(zone_dict['xLs'], zone_dict['yLs'], linestyle='-', linewidth=1, color='dimgrey') 
     ax2.plot(zone_dict['xRs'], zone_dict['yRs'], linestyle='-', linewidth=1, color='dimgrey')  
     
-    ax1.set_ylim(0, 7.0) 
+    ax1.set_ylim(0, 5.0) 
     ax1.set_xlim(-2.5,2.5) 
-    ax2.set_ylim(0, 7.0) 
+    ax2.set_ylim(0, 5.0) 
     ax2.set_xlim(-2.5,2.5)   
     ax1.set_xlabel("Feet from center of plate", fontsize=14) 
     ax2.set_xlabel("Feet from center of plate", fontsize=14) 
@@ -270,6 +314,8 @@ def basic_layout_pitcher_2(year=2015):
     ax2.set_title('RHB')
     ax2.set_yticklabels([])
     ax2.set_ylabel('')   
+    
+    ax1.text(-2.3, 0.2, '@soshbaseball', fontsize=12, alpha=0.8)
     
     plt.tight_layout()
     
@@ -287,12 +333,7 @@ def basic_layout_pitcher_4(year=2015):
     from Baseball import strikezone 
     zone_dict = strikezone.get_50pct_zone(year) 
 
-    fig, ((ax1, ax2),(ax3,ax4)) = plt.subplots(2,2,figsize=(11.5,12), facecolor='white')
-    
-    ax1.plot(zone_dict['xLs'], zone_dict['yLs'], linestyle='-', linewidth=1, color='dimgrey') 
-    ax2.plot(zone_dict['xRs'], zone_dict['yRs'], linestyle='-', linewidth=1, color='dimgrey') 
-    ax3.plot(zone_dict['xLs'], zone_dict['yLs'], linestyle='-', linewidth=1, color='dimgrey') 
-    ax4.plot(zone_dict['xRs'], zone_dict['yRs'], linestyle='-', linewidth=1, color='dimgrey') 
+    fig, ((ax1, ax2),(ax3,ax4)) = plt.subplots(2,2,figsize=(11.5,12), facecolor='white') 
     
     ax1.set_title('LHB')
     ax2.set_title('RHB')
@@ -302,10 +343,17 @@ def basic_layout_pitcher_4(year=2015):
     for ax in (ax1,ax2):
         ax.set_xticklabels([])
         ax.set_xlabel('')
+    for ax in (ax2,ax4):
+        ax.plot(zone_dict['xRs'], zone_dict['yRs'], linestyle='-', linewidth=1, color='dimgrey') 
+        ax.set_yticklabels([])
+        ax.set_ylabel('')
     for ax in (ax3,ax4):
         ax.set_xlabel("Feet from center of plate", fontsize=14) 
-    for ax in (ax1,ax3):
+    for ax in (ax1,ax3): 
+        ax.plot(zone_dict['xLs'], zone_dict['yLs'], linestyle='-', linewidth=1, color='dimgrey') 
         ax.set_ylabel('Feet above plate', fontsize=14)
+    
+    ax1.text(-2.3, 0.2, '@soshbaseball', fontsize=12, alpha=0.8)
     
     plt.tight_layout()
     
@@ -342,6 +390,8 @@ def basic_layout_pitcher_6(year=2015):
     ax6.set_xlabel("Feet from center of plate", fontsize=14) 
     ax1.set_title('LHB')
     ax2.set_title('RHB')
+    
+    ax1.text(-2.3, 0.2, '@soshbaseball', fontsize=12, alpha=0.8)
     
     plt.tight_layout()
     
