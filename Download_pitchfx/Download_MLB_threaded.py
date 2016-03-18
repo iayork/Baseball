@@ -217,19 +217,22 @@ class Parse_game():
         """ The inning-by-inning boxscore
             PITCHr/x does not download this, but it might be useful 
         """
-        tree = etree.parse('%s%s' % (self.gameday_url,'rawboxscore.xml'))
-        for boxscore in tree.iterfind('linescore'):
-            boxscoreD = dict(boxscore.attrib)
+        try:
+            tree = etree.parse('%s%s' % (self.gameday_url,'rawboxscore.xml'))
+            for boxscore in tree.iterfind('linescore'):
+                boxscoreD = dict(boxscore.attrib)
     
-            for inning in boxscore.iterfind('inning_line_score'):
-                inningD = dict(inning.attrib)
-                for side in ['home','away']:
-                    try:
-                        boxscoreD['%s_%s' % (side, inningD['inning']) ] = inningD[side]
-                    except KeyError:  # No info for home or away?
-                        boxscoreD['%s_%s' % (side, inningD['inning']) ] = np.nan
+                for inning in boxscore.iterfind('inning_line_score'):
+                    inningD = dict(inning.attrib)
+                    for side in ['home','away']:
+                        try:
+                            boxscoreD['%s_%s' % (side, inningD['inning']) ] = inningD[side]
+                        except KeyError:  # No info for home or away?
+                            boxscoreD['%s_%s' % (side, inningD['inning']) ] = np.nan
                         
-        boxscoreD['Gameday_link'] = self.gdl  
+            boxscoreD['Gameday_link'] = self.gdl  
+        except OSError: # No file found
+            boxscoreD = {'Gameday_link':self.gdl}
         try:
             self.boxscoreDF = self.boxscoreDF.append(pd.DataFrame(boxscoreD, index=(0,)))
         except AttributeError: 
@@ -410,8 +413,7 @@ class Parse_game():
         """
         return self.gameDF
         
-    def get_dataframes(self):
-        print(len(self.atbatDF), len(self.poDF))
+    def get_dataframes(self): 
         return {'game':     self.gameDF, 
                 'boxscore': self.boxscoreDF, 
                 'player':   self.playerDF, 

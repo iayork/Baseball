@@ -31,6 +31,15 @@ def get_swinging_strikes_fouls(df)
                                
 def get_swinging_strikes(df)
 
+#------Get OBP, SLG, OPS from a PITCHf/x dataframe----------
+def get_atbats_pfx(df)
+
+def get_slg_pfx(df) 
+
+def get_obp_pfx(df)
+
+def get_ops_pfx(df)
+
 """
 
 import pandas as pd 
@@ -139,3 +148,37 @@ def get_swinging_strikes_fouls(df):
                                
 def get_swinging_strikes(df):
     return df[(df['des'].isin(['Swinging Strike', 'Swinging Strike (Blocked)']))] 
+    
+    
+#------Get OBP, SLG, OPS from a PITCHf/x dataframe----------
+def get_atbats_pfx(df):
+    no_atbat = ['Walk', 'Intent Walk', 'Sac Bunt', 'Hit By Pitch', 
+                'Sac Fly', 'Catcher Interference', 'Fan interference',
+                'Batter Interference', 'Sac Fly DP', 'Sacrifice Bunt DP']
+    return df[~df['event'].isin(no_atbat)]
+
+def get_slg_pfx(df):  
+    ab = Baseball.get_atbats_pfx(df)
+    events = list(ab.groupby(['gameday_link','num']).first()['event'].values)
+    b1 = events.count('Single')
+    b2 = events.count('Double') * 2
+    b3 = events.count('Triple') * 3
+    b4 = events.count('Home Run') * 4
+    return (b1 + b2 + b3 + b4)/len(events)
+
+def get_obp_pfx(df):
+    # (Hits + Walks + Hit by Pitch) / (At Bats + Walks + Hit by Pitch + Sacrifice Flies)
+    ob_events = ['Single', 'Double', 'Triple', 'Home Run', 
+                 'Walk', 'Hit By Pitch']
+    pa_extras = ['Walk', 'Sac Fly', 'Hit By Pitch']
+    on_base = len(df[df['event'].isin(ob_events)].groupby(['gameday_link','num']).first())
+    ab = Baseball.get_atbats_pfx(df)
+    pa = (len(ab.groupby(['gameday_link','num']).first()) + 
+          len(df[df['event'].isin(pa_extras)].groupby(['gameday_link','num']).first()))
+    
+    return on_base/pa
+
+def get_ops_pfx(df):
+    slg = Baseball.get_slg_pfx(df)
+    obp = Baseball.get_obp_pfx(df)
+    return(slg + obp)
