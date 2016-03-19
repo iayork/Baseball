@@ -180,7 +180,8 @@ class Parse_game():
         except AttributeError: 
             # If no gameDF has been made, make one from gameD
             self.gameDF = pd.DataFrame(gameD, index=(0,))
-        return True
+        # At this point self.gameDF should exist.  If not, return False
+        return True 
             
     def parse_boxscore(self):
         """ The inning-by-inning boxscore

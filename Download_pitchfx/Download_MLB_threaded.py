@@ -120,9 +120,9 @@ def remove_duplicate_rows():
                   'atbat', 'game', 'boxscore', 'player', 'runner'):
         try:
             df = pd.read_sql("select * from %s" % table, con)
-            print ('Table %s before removing duplicates is %i rows' % (table, len(df)))
+            print ('Table %s before removing duplicates is %i rows' % (table, len(df)), end='; ')
             df.drop_duplicates(inplace=True)
-            print ('Table %s after removing duplicates is %i rows' % (table, len(df)))
+            print ('after is %i rows' % len(df))
             df.to_sql(name=table, if_exists='replace', con=con)
         except (OperationalError, DatabaseError):
             pass
@@ -216,11 +216,12 @@ def parse_gdls(gdl):
             raise
             pass
             #bad_gdls.append(': '.join([gdl, exc.args[0]])) 
-    else:
-        pass
-        #bad_gdls.append(': '.join([gdl, 'Failed to parse Game properly'])) 
         
-    return parser.get_dataframes() # Returns a dictionary of df names : df
+        return parser.get_dataframes() # Returns a dictionary of df names : df
+    else:
+        return {} # Empty dict 
+        #pass
+        #bad_gdls.append(': '.join([gdl, 'Failed to parse Game properly'])) 
     
 
 def collect_gameday_urls(day_url): 
