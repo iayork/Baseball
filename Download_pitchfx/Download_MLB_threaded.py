@@ -120,9 +120,7 @@ def remove_duplicate_rows():
                   'atbat', 'game', 'boxscore', 'player', 'runner'):
         try:
             df = pd.read_sql("select * from %s" % table, con)
-            print ('Table %s before removing duplicates is %i rows' % (table, len(df)), end='; ')
             df.drop_duplicates(inplace=True)
-            print ('after is %i rows' % len(df))
             df.to_sql(name=table, if_exists='replace', con=con)
         except (OperationalError, DatabaseError):
             pass
@@ -135,7 +133,7 @@ def check_all_games_written(gameday_links):
         sql_gdls = [x[0] for x in c.fetchall()]
         con.close()
         if set([x.strip('/').split('/')[-1].strip('gid_') for x in gameday_links]).issubset(set(sql_gdls)):
-            print ("Saved %i games for month %s, %s" % ( len(gameday_links), m, year_start))
+            print ("Saved %i games" % ( len(gameday_links)))
         else:
             print ("Not saved to SQL: ")
             print (set([x.strip('/').split('/')[-1].strip('gid_') for x in gameday_links]) - (set(sql_gdls)))

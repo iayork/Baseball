@@ -180,8 +180,28 @@ class Parse_game():
         except AttributeError: 
             # If no gameDF has been made, make one from gameD
             self.gameDF = pd.DataFrame(gameD, index=(0,))
-        # At this point self.gameDF should exist.  If not, return False
+        
+        # Set up all the other dataframes as blanks 
+        self.blank_dataframes()
         return True 
+        
+    def blank_dataframes(self):
+        """Set up default dataframes with minimal information 
+           (gameday_link) 
+           Overwrite these if there is actual information
+        """
+        self.boxscoreDF = pd.DataFrame({'gameday_link':self.gdl}, index=(0,))
+        self.pitchDF    = pd.DataFrame({'gameday_link':self.gdl}, index=(0,))
+        self.runnerDF   = pd.DataFrame({'gameday_link':self.gdl}, index=(0,))
+        self.poDF       = pd.DataFrame({'gameday_link':self.gdl}, index=(0,))
+        self.actionDF   = pd.DataFrame({'gameday_link':self.gdl}, index=(0,))
+        self.playerDF   = pd.DataFrame({'gameday_link':self.gdl}, index=(0,))
+        self.coachDF    = pd.DataFrame({'gameday_link':self.gdl}, index=(0,))
+        self.umpireDF   = pd.DataFrame({'gameday_link':self.gdl}, index=(0,))
+        
+        self.atbatDF    = pd.DataFrame()
+        self.hipDF      = pd.DataFrame()
+            
             
     def parse_boxscore(self):
         """ The inning-by-inning boxscore
@@ -191,7 +211,7 @@ class Parse_game():
             tree = etree.parse('%s%s' % (self.gameday_url,'rawboxscore.xml'))
             for boxscore in tree.iterfind('linescore'):
                 boxscoreD = dict(boxscore.attrib)
-    
+                boxscoreD['gameday_link'] = self.gdl
                 for inning in boxscore.iterfind('inning_line_score'):
                     inningD = dict(inning.attrib)
                     for side in ['home','away']:
@@ -199,15 +219,10 @@ class Parse_game():
                             boxscoreD['%s_%s' % (side, inningD['inning']) ] = inningD[side]
                         except KeyError:  # No info for home or away?
                             boxscoreD['%s_%s' % (side, inningD['inning']) ] = np.nan
-                        
-            boxscoreD['Gameday_link'] = self.gdl  
-        except OSError: # No file found
-            boxscoreD = {'Gameday_link':self.gdl}
-        try:
-            self.boxscoreDF = self.boxscoreDF.append(pd.DataFrame(boxscoreD, index=(0,)))
-        except AttributeError: 
+            
             self.boxscoreDF = pd.DataFrame(boxscoreD, index=(0,))
-                        
+        except OSError: # No file found
+            pass
         
     def parse_player_coach_umpires(self):
         """ Contains player, coach, and umpire information for the game
@@ -226,64 +241,58 @@ class Parse_game():
                 for umpire in umpires.iterfind('umpire'):
                     self.parse_umpire(umpire)
                 
-            self.parse_player_id_to_name()
+            self.parse_player_id_to_name(self.playerDF)
         except OSError: # No file found
-            self.playerDF = pd.DataFrame({'Gameday_link':self.gdl}, index=(0,))
-            self.coachDF  = pd.DataFrame({'Gameday_link':self.gdl}, index=(0,))
-            self.umpireDF = pd.DataFrame({'Gameday_link':self.gdl}, index=(0,))
+            pass
         
-    def parse_player_id_to_name(self): 
+    def parse_player_id_to_name(self, df): 
+        # TODO - Fix name lookups
         self.id_to_nameD = {x[0]:'%s %s' % (x[1], x[2])
-                            for x in self.playerDF[['id','first','last']].values}
+                            for x in df[['id','first','last']].values}
                 
     def parse_player(self, player):
-        """ Called by parse_player_coach_umpires and yields playerDF"""
-        playerD = dict(player.attrib) 
-        playerD['Gameday_link'] = self.gdl
+        """ Called by parse_player_coach_umpires and yields playerDF""" 
         try:
+            playerD = dict(player.attrib) 
+            playerD['gameday_link'] = self.gdl
             self.playerDF = self.playerDF.append(pd.DataFrame(playerD, index=(0,)))
-        except AttributeError: 
-            self.playerDF = pd.DataFrame(playerD, index=(0,))
+        except OSError: # No file found
+            pass
         
     def parse_coach(self, coach): 
         """ Called by parse_player_coach_umpires and yields coachDF
             Takes the "coach" subsection from the parsed "player.xml" file
-        """
-        coachD = dict(coach.attrib) 
-        coachD['Gameday_link'] = self.gdl
+        """ 
         try:
+            coachD = dict(coach.attrib) 
+            coachD['gameday_link'] = self.gdl 
             self.coachDF = self.coachDF.append(pd.DataFrame(coachD, index=(0,)))
-        except AttributeError: 
-            self.coachDF = pd.DataFrame(coachD, index=(0,))
+        except OSError: # No file found
+            pass
             
     def parse_umpire(self, umpire): 
         """ Called by parse_player_coach_umpires and yields umpireDF
             Takes the "umpire" subsection from the parsed "player.xml" file
-        """
-        umpireD = dict(umpire.attrib) 
-        umpireD['Gameday_link'] = self.gdl
+        """ 
         try:
+            umpireD = dict(umpire.attrib) 
+            umpireD['gameday_link'] = self.gdl 
             self.umpireDF = self.umpireDF.append(pd.DataFrame(umpireD, index=(0,)))
-        except AttributeError: 
-            self.umpireDF = pd.DataFrame(umpireD, index=(0,))
+        except OSError: 
+            pass
             
     def parse_hip(self):
         """ Hits
-        """
+        """ 
         try:
-            tree = etree.parse('%s%s' % (self.gameday_url,'inning/inning_hit.xml'))
+            tree = etree.parse('%s%s' % (self.gameday_url,'inning/inning_hit.xml')) 
+            if len(tree.findall('hip')) == 0:  #no-hitter?
+                self.hipDF = pd.DataFrame({'gameday_link': self.gdl}, index=(0,))
             for hip in tree.iterfind('hip'):
                 hipD = dict(hip.attrib) 
-                hipD['Gameday_link'] = self.gdl
-            try:
                 self.hipDF = self.hipDF.append(pd.DataFrame(hipD, index=(0,)))
-            except AttributeError: 
-                try:
-                    self.hipDF = pd.DataFrame(hipD, index=(0,))
-                except UnboundLocalError:  # No hits, return empty DF
-                    self.hipDF = pd.DataFrame()
         except OSError: # No file found
-            self.hipDF  = pd.DataFrame({'Gameday_link':self.gdl}, index=(0,))
+            self.hipDF = pd.DataFrame({'gameday_link': self.gdl}, index=(0,))
         
     def parse_ab_pitch_runner_action_po(self):
         """ The inning/inning_all.xml files is broken into 5 dataframes:
@@ -292,16 +301,16 @@ class Parse_game():
             runner
             po
             action
-            Each one is parsed separately from the original xml
+            Each one is parsed separately out of the original xml
         """
         try:
             tree = etree.parse('%s%s' % (self.gameday_url,'inning/inning_all.xml'))  
             for inning in tree.iterfind('inning'): 
-                self.inning_number = inning.attrib['num']
-                for self.side in ('top','bottom'):
-                    for inning_side in inning.iterfind(self.side):
+                inning_number = inning.attrib['num']
+                for side in ('top','bottom'):
+                    for inning_side in inning.iterfind(side):
                         for ab in inning_side.iterfind('atbat'):  
-                            self.parse_atbat(ab) 
+                            self.parse_atbat(ab, inning_number, side) 
                             self.parse_pitch(ab)
                             self.parse_runner(ab)
                             self.parse_po(ab)
@@ -309,20 +318,16 @@ class Parse_game():
                         for act in inning_side.iterfind('action'):  
                             self.parse_action(act)
         except OSError: # No file found
-            self.atbatDF  = pd.DataFrame({'Gameday_link':self.gdl}, index=(0,))
-            self.pitchDF  = pd.DataFrame({'Gameday_link':self.gdl}, index=(0,))
-            self.runnerDF = pd.DataFrame({'Gameday_link':self.gdl}, index=(0,))
-            self.poDF     = pd.DataFrame({'Gameday_link':self.gdl}, index=(0,))
-            self.actionDF = pd.DataFrame({'Gameday_link':self.gdl}, index=(0,))
+            pass
                         
-    def parse_atbat(self, ab): 
+    def parse_atbat(self, ab, inning_number, side): 
         """ Parses the "atbat" subsection from the parsed "inning/inning_all.xml" file
         """
         num = ab.attrib['num'] 
         abD = dict(ab.attrib) 
-        abD['Inning'] = self.inning_number
-        abD['inning_side'] = self.side
-        abD['Gameday_link'] = self.gdl
+        abD['Inning'] = inning_number
+        abD['inning_side'] = side
+        abD['gameday_link'] = self.gdl
         try:
             abD['pitcher_name'] = self.id_to_nameD[abD['pitcher']]
         except KeyError: # Name not known, search later
@@ -331,10 +336,7 @@ class Parse_game():
             abD['batter_name'] = self.id_to_nameD[abD['batter']]
         except KeyError: # Name not known, search later
             abD['batter_name'] = np.nan
-        try:
-            self.atbatDF = self.atbatDF.append(pd.DataFrame(abD, index=(0,)))
-        except AttributeError: 
-            self.atbatDF = pd.DataFrame(abD, index=(0,))
+        self.atbatDF = self.atbatDF.append(pd.DataFrame(abD, index=(0,)))
 
     def parse_pitch(self, ab):
         """ Parses the "pitch" subsection from the parsed "inning/inning_all.xml" file
@@ -343,13 +345,10 @@ class Parse_game():
         for pt in ab.iterfind('pitch'):  
             pitchD = dict(pt.attrib)
             pitchD['num'] = num
-            pitchD['Gameday_link'] = self.gdl 
+            pitchD['gameday_link'] = self.gdl 
             if 'nasty' not in pitchD.keys():
                 pitchD['nasty'] = np.nan
-            try:
-                self.pitchDF = self.pitchDF.append(pd.DataFrame(pitchD, index=(0,)))
-            except AttributeError: 
-                self.pitchDF = pd.DataFrame(pitchD, index=(0,)) 
+            self.pitchDF = self.pitchDF.append(pd.DataFrame(pitchD, index=(0,)))
 
     def parse_runner(self, ab):
         """ Parses the "runner" subsection from the parsed "inning/inning_all.xml" file
@@ -358,45 +357,37 @@ class Parse_game():
         for rn in ab.iterfind('runner'): 
             rnD = dict(rn.attrib) 
             rnD['num'] = num
-            rnD['Gameday_link'] = self.gdl
-            try:
-                self.runnerDF = self.runnerDF.append(pd.DataFrame(rnD, index=(0,))) 
-            except AttributeError: 
-                self.runnerDF = pd.DataFrame(rnD, index=(0,))
+            rnD['gameday_link'] = self.gdl
+            self.runnerDF = self.runnerDF.append(pd.DataFrame(rnD, index=(0,))) 
                 
     def parse_action(self, act):
         """ Parses the "action" subsection from the parsed "inning/inning_all.xml" file"""
         actD = dict(act.attrib) 
-        actD['Gameday_link'] = self.gdl
-        try:
-            self.actionDF = self.actionDF.append(pd.DataFrame(actD, index=(0,))) 
-        except AttributeError:
-            self.actionDF = pd.DataFrame(actD, index=(0,))
+        actD['gameday_link'] = self.gdl
+        self.actionDF = pd.DataFrame(actD, index=(0,))
                 
     def parse_po(self, ab):
         """ Parses the "po" subsection from the parsed "inning/inning_all.xml" file
             This could be empty/non-existent if there were no pitchouts in the game
-        """
-        num = ab.attrib['num']  
-        for po in ab.iterfind('po'):  
-            poD = dict(po.attrib)
-            poD['num'] = num
-            poD['Gameday_link'] = self.gdl 
-            try:
+        """ 
+        num = ab.attrib['num'] 
+        if len(ab.findall('po')) == 0:  #no-hitter?
+            self.poDF = pd.DataFrame({'num':num,'gameday_link':self.gdl}, index=(0,))
+        else: 
+            for po in ab.iterfind('po'):  
+                poD = dict(po.attrib)
+                poD['num'] = num
+                poD['gameday_link'] = self.gdl 
                 self.poDF = self.poDF.append(pd.DataFrame(poD, index=(0,)))
-            except AttributeError: 
-                self.poDF = pd.DataFrame(poD, index=(0,))
-        try:
-            len(self.poDF)
-        except AttributeError:  # no poDF made
-            self.poDF = pd.DataFrame({'num':num, 'Gameday_link':self.gdl}, index=(0,))
-            
                 
 
     def get_gameDF(self):
         """ Return gameDF to check for minimal success 
         """
-        return self.gameDF
+        try:
+            return self.gameDF
+        except AttributeError:
+            return False
         
     def get_dataframes(self): 
         return {'game':     self.gameDF, 
