@@ -15,6 +15,9 @@ def speed_at_feet(df, feet=55):
     df['Speed55'] = df.apply(speed_at_feet, axis=1)
     or
     df['Speed15'] = speed_at_feet(df, feet=15) 
+    
+def pitch_usage(df):
+    # Turn a PITCHf/x dataframe into pitch usage percents 
 """
 
 import pandas as pd 
@@ -110,3 +113,20 @@ def speed_at_feet(df, feet=55):
     mph_feet = -(vy_feet * 60*60)/5280.0 
             
     return mph_feet
+    
+def gdl_to_date(x):
+    return '%s-%s-%s' % (x.split('_')[2], x.split('_')[3], x.split('_')[1])
+    
+def pitch_usage(df):
+    # Turn a PITCHf/x dataframe into pitch usage percents
+    u1 = pd.DataFrame(df.groupby(['gameday_link','pitch_type']).count()['count'])
+    u1 = u1.reset_index()
+    u1.rename(columns={'pitch_type':'Pitch type'}, inplace=True)
+    u1['Date'] = u1['gameday_link'].apply(gdl_to_date)
+    u2 = u1.pivot(index='Date',columns='Pitch type',values='count').fillna(0)
+    u2['Total'] = u2.sum(axis=1)
+    for ptype in u2.columns[:-1]:
+        u2['%s_pct' % ptype] = u2[ptype]/u2['Total']*100
+    u_pct = u2[[x for x in u2.columns if 'pct' in x]]
+    u_pct.rename(columns={x:x.replace('_pct','') for x in u_pct.columns}, inplace=True)
+    return u_pct

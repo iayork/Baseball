@@ -153,6 +153,39 @@ def get_bbref_pitch(url, year=2015):
     
         
     return bbref 
+    
+def get_bbref_bat(url, year=2015):
+    from bs4 import BeautifulSoup
+    import requests 
+    
+    r = requests.get(url)
+    data = r.text
+    soup = BeautifulSoup(data, 'lxml') 
+    tbl = soup.find('table', id='batting_gamelogs')
+    bbref = pd.read_html(str(tbl))[0] 
+    # Drop the last row = summary row
+    bbref = bbref.iloc[:-1] 
+    try:
+        bbref = bbref[~((bbref['Gcar'].str.contains('Tm')) |
+                       (bbref['Gcar'].str.contains('Gcar')))]
+    except TypeError:
+        pass 
+    bbref = bbref.dropna(subset=['Gcar',], axis=0)
+    for param in bbref.columns:
+        bbref[param] = pd.to_numeric(bbref[param], errors='ignore')
+    
+    bbref['GDL_Date'] = bbref['Date'].apply(lambda x:Baseball.bbref_date_to_gdl_date(x, year)) 
+    return (bbref) 
+
+
+def gdl_to_date(gdl): 
+    # Takes gameday_link and returns a date as a string like 05-01-16
+    y, m, d = (gdl.split('_')[1], gdl.split('_')[2], gdl.split('_')[3])
+    return ('%s-%s-%s' % (m, d, y[-2:]))
+    
+def gdl_to_datetime(x):
+    # Takes a gameday_link and returns a date as a datetime
+    return pd.to_datetime(gdl_to_date(x), format='%m-%d-%y')
                              
     
 def convert_bbref_ip(x):
