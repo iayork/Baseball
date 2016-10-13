@@ -188,7 +188,8 @@ def get_obp_pfx(df):
     obp_pa = Baseball.get_pa_for_obp(df)
     return on_base/obp_pa
 
-def get_slg_pfx(df):  
+def get_slg_pfx(df): 
+    """Total bases per ATBAT """ 
     ab = Baseball.get_atbats_df_pfx(df)
     events = list(ab.groupby(['gameday_link','num']).first()['event'].values)
     b1 = events.count('Single')
@@ -196,6 +197,27 @@ def get_slg_pfx(df):
     b3 = events.count('Triple') * 3
     b4 = events.count('Home Run') * 4
     return (b1 + b2 + b3 + b4)/len(events)
+    
+def tb_per_pitch(df):
+    hit_des = ['In play, no out','In play, run(s)']
+    hit_event = ['Single','Double','Triple','Home Run']
+    hits = df[(df['event'].isin(hit_event)) & 
+              (df['des'].isin(hit_des))]
+
+    b1 = len(hits[hits['event']=='Single'])
+    b2 = len(hits[hits['event']=='Double']) * 2
+    b3 = len(hits[hits['event']=='Triple']) * 3
+    b4 = len(hits[hits['event']=='Home Run']) * 4
+    tb = (b1 + b2 + b3 + b4)
+    tb_per_pitch = (b1 + b2 + b3 + b4)/len(df)
+    return {'Pitches':len(df),
+            'Hits':len(hits),
+            'TB':tb,
+            'TB_per_pitch':tb_per_pitch}    
+    
+def get_tb_per_pitch_pfx(df): 
+    """Total bases per pitch, deprecated because tb_per_pitch is more useful """   
+    return (Baseball.get_slg_in_box(df)[0])/len(df)
 
 def get_ops_pfx(df):
     slg = Baseball.get_slg_pfx(df)

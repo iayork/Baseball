@@ -101,7 +101,8 @@ ptype_clrs = {  'FF':muted[2],
                 'FC':muted[4], 
                 'FO':set2[1],
                 'SI':muted[0],
-                'FS':set2[1]}
+                'FS':set2[1],  
+                'KN':muted[0]}
     
 
 def get_2D_pxpz_hist(df, rot=True, bins=10):
@@ -482,7 +483,7 @@ def basic_layout_pitcher_12(year=2015):
     zone_dict = strikezone.get_50pct_zone(year) 
     
     fig, ((ax1, ax2),(ax3,ax4),(ax5,ax6),
-          (ax7,ax8),(ax9,ax10),(ax9,ax10)) = plt.subplots(6,2,figsize=(8,20), facecolor='white')
+          (ax7,ax8),(ax9,ax10),(ax11,ax12)) = plt.subplots(6,2,figsize=(8,20), facecolor='white')
     # Plot the strike zone on each plot
     for ax in (ax1,ax3,ax5,ax7,ax9,ax11):
         ax.plot(zone_dict['xLs'], zone_dict['yLs'], linewidth=2, color='grey') 
@@ -706,6 +707,25 @@ def cmapBlRd(median):
 
     cmBlRdDvg = mpl.colors.LinearSegmentedColormap('Bl_Rd_Diverging_CMAP', cdictBlRdDvg)
     return cmBlRdDvg
+    
+    
+def cmapBlRd_bright(median):
+    """Diverging cmap blue->red centered on "median" value
+       Using the same brighter colors as the matplotlib bwr cmap"""
+
+    cdictBlRdDvg = {'red': ((0.0, 0.0, 0.0),
+                         (median, 0.996, 0.996),
+                         (1.0, 1, 1)),
+                'blue': ((0.0, 1, 1),
+                          (median, 0.996, 0.996),
+                          (1.0, 0.008, 0.008)),
+                'green': ((0.0, 0.0, 0.0),
+                         (median, 0.996, 0.996),
+                         (1.0, 0.008, 0.008))}
+
+    cmBlRdDvg = mpl.colors.LinearSegmentedColormap('Bl_Rd_Diverging_CMAP', cdictBlRdDvg)
+    return cmBlRdDvg
+    
     
 from bokeh.plotting import figure, ColumnDataSource
 from bokeh.models import HoverTool

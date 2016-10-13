@@ -21,7 +21,7 @@ get_bbref_pitch(url):
 bbref_date_to_gdl_date(bbref_date, year):
     take date in format "Apr 8" or "Jul 7(1)" and convert to "04-08-15" format
     usage: bbref_date_to_gdl_date(bbref_date, year)
-    year default = 2015
+    year default = 2016
     
 convert_bbref_ip(s):
     convert series containing innings pitched in ".1", ".2" format 
@@ -96,11 +96,11 @@ def get_pitchab_for_pitcher(pitcher_name, con, reg=True):
     return pitchab  
 
     
-def bbref_date_to_gdl_date(bbref_date, year):
+def bbref_date_to_gdl_date(bbref_date, year=2016):
     """ 
-    take date in format "Apr 8" or "Jul 7(1)" and convert to "04-08-15" format
+    take date in format "Apr 8" or "Jul 7(1)" and convert to "04-08-16" format
     usage: bbref_date_to_gdl_date(bbref_date, year)
-    year default = 2015
+    year default = 2016
     """
     dateD = {'Mar':3, 
              'Apr':4,
@@ -113,14 +113,54 @@ def bbref_date_to_gdl_date(bbref_date, year):
              'Nov':11}
     if len(str(year)) == 4:
         year = str(year)[-2:]
-             
-    new_date = '%02d-%02d-%s' % (dateD[bbref_date.split()[0]],
-                                 int(bbref_date.split()[-1].split('(')[0]),
-                                 year)
+    if ' (' in bbref_date:  # e.g. May 6 (1)
+        new_date = '%02d-%02d-%s' % (dateD[bbref_date.split()[0]],
+                                     int(bbref_date.split()[1].split('(')[0]),
+                                     year)
+    else:
+        new_date = '%02d-%02d-%s' % (dateD[bbref_date.split()[0]],
+                                     int(bbref_date.split()[1].split('(')[0]),
+                                     year)
     return new_date
     
+def bbref_dates_to_gdls(df, year=2016):
+    """ Convert baseball-reference.com date and team information
+        to a series of gameday_link 
+        gid_2015_05_02_nyamlb_bosmlb_1
+        Return a list of gameday_link 
+    """
     
-def get_bbref_pitch(url, year=2015):
+    gdls = []
+    monthD = {'Mar':'03','Apr':'04', 'May':'05', 'Jun':'06', 
+              'Jul':'07', 'Aug':'08', 'Sep':'09', 'Oct':'10'}
+              
+    teamD = {'ATL':'atl','BAL':'bal', 'BOS':'bos', 'CHW':'cha', 
+             'DET':'det','HOU':'hou', 'KCR':'kca', 'LAA':'ana', 
+             'MIN':'min','NYY':'nya', 'OAK':'oak', 'SEA':'sea', 
+             'TBR':'tba', 'TEX':'tex', 'TOR':'tor','MIA':'mia',
+             'NYM':'nyn','PHI':'phi', 'CLE':'cle','WSN':'was', 
+             'CHC':'chn','PIT':'pit','STL':'sln','MIL':'mil',
+             'CIN':'cin','ARI':'ari','COL':'col','LAD':'lan',
+             'SDP':'sdn', 'SFG':'sfn', 'FLA':'flo'}
+    
+    for (date, tm, at_, opp) in df[['Date','Tm','Unnamed: 4','Opp']].values:
+        month = monthD[date.split(' ')[0]]
+        day =  date.split(' ')[1].zfill(2)
+        if '(' in date:
+            game_no = date.split('(')[1].replace(')', '')
+        else:
+            game_no = '1'
+            
+        if at_ == '@':
+            gdls.append( 'gid_%s_%s_%s_%smlb_%smlb_%s' % (year, month, day, teamD[tm], 
+                                                            teamD[opp], game_no))
+        else:
+            gdls.append( 'gid_%s_%s_%s_%smlb_%smlb_%s' % (year, month, day, teamD[opp], 
+                                                            teamD[tm], game_no))
+    return gdls
+    
+    
+def get_bbref_pitch(url, year=2016):
     """ 
     returns a pandas dataframe containing bbref info (not all numeric?)
     usage get_bbref(url)
@@ -151,10 +191,10 @@ def get_bbref_pitch(url, year=2015):
     bbref['WHIP'] = Baseball.get_whip(bbref)
     bbref['ERIP'] = Baseball.get_erip(bbref)
     
-        
     return bbref 
+
     
-def get_bbref_bat(url, year=2015):
+def get_bbref_bat(url, year=2016):
     from bs4 import BeautifulSoup
     import requests 
     

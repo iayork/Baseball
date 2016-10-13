@@ -118,7 +118,7 @@ def gdl_to_date(x):
     return '%s-%s-%s' % (x.split('_')[2], x.split('_')[3], x.split('_')[1])
     
 def pitch_usage(df):
-    # Turn a PITCHf/x dataframe into pitch usage percents
+    # Turn a PITCHf/x dataframe into per-game pitch usage percents 
     u1 = pd.DataFrame(df.groupby(['gameday_link','pitch_type']).count()['count'])
     u1 = u1.reset_index()
     u1.rename(columns={'pitch_type':'Pitch type'}, inplace=True)
@@ -130,3 +130,10 @@ def pitch_usage(df):
     u_pct = u2[[x for x in u2.columns if 'pct' in x]]
     u_pct.rename(columns={x:x.replace('_pct','') for x in u_pct.columns}, inplace=True)
     return u_pct
+    
+def pitch_usage_year(df):
+    # Turn a PITCHf/x dataframe into per-year pitch usage percents 
+    usage_yr = df[['pitch_type','count']].groupby('pitch_type').count() 
+    usage_yr['Percent'] = usage_yr.apply(lambda x:x/usage_yr['count'].sum(axis=0)*100)
+    usage_yr = usage_yr.drop(['count'],axis=1)
+    return usage_yr
