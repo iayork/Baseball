@@ -1,32 +1,57 @@
 """
-Functions for calculating pitching and batting stats and outcomes
-
-pitch_pcts_per_game(df, ptypes):
-    Pitch mix usage as percentages per game
+Functions for calculating pitching and batting stats and outcomes 
     
-get_whip(df):
+def get_whip_from_bbref(df): 
+def get_erip_from_bbref(df): 
 
-get_erip(df):
+def pitch_pcts_per_game(df, ptypes):
+    #Pitch mix usage as percentages per game
+    
+def get_gb_from_pfx(df):
+    # Ground Ball Percentage (GB%) = Ground Balls / Balls in Play 
+    
+#------Balls, strikes, fouls, swinging strikes, called strikes from PITCHf/x df----------   
 
-get_gb(df):
+def get_strikes_all(df):
+    # swinging misses, fouls, hits, called strikes 
+    
+def get_balls(df):  
+                             
+def get_called_strikes(df): 
+    
+def get_hits(df):  
+                               
+def get_swings_all(df):
+    # No called strikes or balls; swinging misses, fouls, hits 
+    
+def get_fouls(df): 
+                               
+def get_swinging_strikes(df):  
+                               
+def get_swinging_strikes_fouls(df):
+    # Any swing that isn't in play, including swinging misses and fouls 
+                               
+def get_outs_in_play(df):
+    # Any in-play event that isn't a hit (includes errors and sacrifices as outs) 
+                    
+def get_contact(df)
+    
+#----Get location of pitches that results in various events--------
 
-get_balls(df, ptype):
-
-get_outs(df, ptype):
-
-get_called(df, ptype):
-
-get_swinging(df, ptype):
-
-get_fouls(df, ptype):
-
-get_hits_pxpz(df, ptype=None): 
-
-get_hits_DF(df, ptype=None):
+def get_balls_px_pz(df, ptype=None):
+def get_outs_px_pz(df, ptype=None): 
+def get_called_strikes_px_pz(df, ptype=None):
+def get_swinging_px_pz(df, ptype=None):
+def get_fouls_px_pz(df, ptype=None):
+def get_hits_px_pz(df, ptype=None):
+    
+#----Misc -------------
 
 def get_bases_per_pitch(df, ptype=None):
 
-get_babip(df, ptype=None): 
+def get_babip(df, ptype=None)
+
+
 
 """
 
@@ -34,10 +59,10 @@ import pandas as pd
 import sqlite3 as sql
 import os.path
 
-def get_whip(df):
+def get_whip_from_bbref(df):
     return ((df['H']) + (df['BB']))/(df['IP'])
     
-def get_erip(df):
+def get_erip_from_bbref(df):
     return df['ER']/df['IP']
 
 def pitch_pcts_per_game(df, ptypes):
@@ -55,89 +80,111 @@ def pitch_pcts_per_game(df, ptypes):
                        x.split('_')[1][-2:]) for x in usageDF.index] 
     return usageDF
 
-def get_gb(df):
+def get_gb_from_pfx(df):
     """Ground Ball Percentage (GB%) = Ground Balls / Balls in Play"""
     inplay = df[df['des'].str.contains('In play')]
-    gb = inplay[(inplay['atbat_des'].str.contains('ground')) | (inplay['atbat_des'].str.contains('Ground'))]
+    gb = inplay[(inplay['atbat_des'].str.contains('ground ball')) | 
+                (inplay['atbat_des'].str.contains('grounds'))]
     return len(gb)/len(inplay) * 100.0
 
 
-def get_balls(df, ptype):
-    df2 = df[((df['des'].str.contains('Ball')) |
-              (df['des'].str.contains('Hit By Pitch')) |
-              (df['des']=='Pitchout')) & (df['pitch_type']==ptype)]
+#------Balls, strikes, fouls, swinging strikes, called strikes from PITCHf/x df----------   
+
+def get_strikes_all(df):
+    # swinging misses, fouls, hits, called strikes
+    balls = ('Ball', 'Hit By Pitch', 'Ball In Dirt', 'Pitchout',
+             'Intent Ball', 'Automatic Ball')
+    return df[~(df['des'].isin(balls))] 
+    
+def get_balls(df): 
+    balls = ('Ball', 'Hit By Pitch', 'Ball In Dirt', 'Pitchout',
+             'Intent Ball', 'Automatic Ball')
+    return df[df['des'].isin(balls)]  
+                             
+def get_called_strikes(df):
+    return df[df['des']=='Called Strike']  
+    
+def get_hits(df): 
+    return df[(df['des'].str.contains('In play') ) & 
+              (df['event'].isin(['Single','Double','Triple','Home Run']))]  
+                               
+def get_swings_all(df):
+    # No called strikes or balls; swinging misses, fouls, hits
+    return df[~(df['des'].isin(['Ball', 'Hit By Pitch', 'Ball In Dirt', 'Pitchout',
+                                'Intent Ball', 'Automatic Ball', 'Called Strike']))] 
+    
+def get_fouls(df):
+    fouls = ('Foul', 'Foul (Runner Going)', 'Foul Tip','Foul Bunt')
+    fouls_in_des = df[(df['des'].isin(fouls))]
+    return fouls_in_des
+    # fouls in play 
+    df[ (df['des']=='In play, out(s)') & 
+        (df['atbat_des'].str.contains('foul'))][['des','atbat_des']]
+                               
+def get_swinging_strikes(df):
+    swinging = ('Swinging Strike','Swinging Strike (Blocked)','Missed Bunt')
+    return df[(df['des'].isin(swinging))] 
+                               
+def get_swinging_strikes_fouls(df):
+    # Any swing that isn't in play, including swinging misses and fouls
+    swings = Baseball.get_swinging_strikes(df)
+    fouls = Baseball.get_fouls(df) 
+    return swings.append(fouls)
+    return contact
+                               
+def get_outs_in_play(df):
+    # Any in-play event that isn't a hit (includes errors and sacrifices as outs)
+    return df[ (df['des'].str.contains('In play') ) & 
+               (~(df['event'].isin(['Single','Double','Triple','Home Run'])))] 
+                    
+def get_contact(df):
+    # Any contact: Hits, fouls, in-play outs
+    hits = Baseball.get_hits(df)
+    fouls = Baseball.get_fouls(df)
+    outs = Baseball.get_outs_in_play(df)
+    contact = hits.append(fouls)
+    contact = contact.append(outs)
+    
+    
+#----Get location of pitches that results in various events--------
+
+def get_balls_px_pz(df, ptype=None):
+    df2 = Baseball.get_balls(df)
+    if ptype:
+        df2 = df2[df2['pitch_type']==ptype]
     return (df2['px'].values, df2['pz'].values) 
 
-def get_outs(df, ptype):
-    p = df[df['pitch_type']==ptype]
-    df2 = p[(p['des'].str.contains('In play, out')) |
-            ((p['des'].str.contains('In play, no out')) & (p['event'].str.contains('out'))) | 
-            ((p['des'].str.contains('In play, no out')) & (p['event'].str.contains('Pop Out'))) | 
-            ((p['des'].str.contains('In play, no out')) & (p['event'].str.contains('Fielders Choice'))) | 
-            ((p['des'].str.contains('In play, no out')) & (p['event'].str.contains('Error'))) | 
-            ((p['des'].str.contains('In play, no out')) & (p['event'].str.contains('Sac Fly'))) |
-            ((p['des'].str.contains('In play, no out')) & (p['event'].str.contains('Sac Bunt'))) |
-            ((p['des'].str.contains('In play, no out')) & (p['event'].str.contains('nterference'))) |
-            ((p['des'].str.contains('In play, no out')) & (p['event'].str.contains('Double Play'))) |
-            ((p['des'].str.contains('In play, run')) & (p['event'].str.contains('out'))) | 
-            ((p['des'].str.contains('In play, run')) & (p['event'].str.contains('Pop Out'))) | 
-            ((p['des'].str.contains('In play, run')) & (p['event'].str.contains('Fielders Choice'))) | 
-            ((p['des'].str.contains('In play, run')) & (p['event'].str.contains('Error'))) | 
-            ((p['des'].str.contains('In play, run')) & (p['event'].str.contains('Sac Fly'))) |
-            ((p['des'].str.contains('In play, run')) & (p['event'].str.contains('Sac Bunt'))) |
-            ((p['des'].str.contains('In play, run')) & (p['event'].str.contains('nterference'))) |
-            ((p['des'].str.contains('In play, run')) & (p['event'].str.contains('Double Play'))) ]
-    return (df2)
-
-def get_called(df, ptype):
-    df2 = df[(df['des'].str.contains('Called Strike')) & (df['pitch_type']==ptype)]
+def get_outs_px_pz(df, ptype=None): 
+    df2 = Baseball.get_outs_in_play(df)
+    if ptype:
+        df2 = df2[df2['pitch_type']==ptype]
     return (df2['px'].values, df2['pz'].values)
 
-def get_swinging(df, ptype):
-    df2 = df[((df['des'].str.contains('Swinging Strike')) |
-              (df['des'].str.contains('Missed Bunt'))) & (df['pitch_type']==ptype)]
+def get_called_strikes_px_pz(df, ptype=None):
+    df2 = Baseball.get_called_strikes(df)
+    if ptype:
+        df2 = df2[df2['pitch_type']==ptype]
+    return (df2['px'].values, df2['pz'].values)
+    
+def get_swinging_px_pz(df, ptype=None):
+    df2 = Baseball.get_swinging_strikes(df)
+    if ptype:
+        df2 = df2[df2['pitch_type']==ptype]
     return (df2['px'].values, df2['pz'].values)
 
-def get_fouls(df, ptype):
-    df2 = df[(df['des'].str.contains('Foul')) & (df['pitch_type']==ptype)]
+def get_fouls_px_pz(df, ptype=None):
+    df2 = Baseball.get_fouls(df)
+    if ptype:
+        df2 = df2[df2['pitch_type']==ptype]
     return (df2['px'].values, df2['pz'].values)
 
-def get_hits_pxpz(df, ptype=None): 
-    if ptype is None: 
-        p = df.copy()
-    else:
-        p = df[df['pitch_type']==ptype]
-    p2 = p[p['des'].str.contains('In play')]
-    df2 = p2[(~p2['des'].str.contains('In play, out')) &
-             (~p2['event'].str.contains('Grounded Into DP')) & 
-             (~p2['event'].str.contains('out')) & 
-             (~p2['event'].str.contains('Pop Out')) & 
-             (~p2['event'].str.contains('Fielders Choice')) & 
-             (~p2['event'].str.contains('Error')) & 
-             (~p2['event'].str.contains('Sac Fly')) &
-             (~p2['event'].str.contains('Sac Bunt')) &
-             (~p2['event'].str.contains('Interference')) &
-             (~p2['event'].str.contains('Double Play')) ] 
-    df3 = p2[(p2['event']=='Single') | 
-             (p2['event']=='Double') | 
-             (p2['event']=='Triple') | 
-             (p2['event']=='Home Run') ]
-
-    #print(df3[['des','event']])
-    return (df3['px'].values, df3['pz'].values)
-
-def get_hits_DF(df, ptype=None): 
-    if ptype is None: 
-        p = df.copy()
-    else:
-        p = df[df['pitch_type']==ptype]
-    p2 = p[p['des'].str.contains('In play')]
-    hitsDF = p2[(p2['event']=='Single') | 
-                (p2['event']=='Double') | 
-                (p2['event']=='Triple') | 
-                (p2['event']=='Home Run') ]
-
-    return (hitsDF)
+def get_hits_px_pz(df, ptype=None): 
+    df2 = Baseball.get_hits(df)
+    if ptype:
+        df2 = df2[df2['pitch_type']==ptype]
+    return (df2['px'].values, df2['pz'].values)
+    
+#----Misc -------------
 
 def get_bases_per_pitch(df, ptype=None): 
     if ptype is None: 
@@ -164,7 +211,7 @@ def get_babip(df, ptype=None):
     else:
         p = df[df['pitch_type']==ptype]
     bip = len( p[(p['des'].str.contains('In play')) & (~p['event'].str.contains('Error'))])
-    hits = len(get_hits(p)[0])  
+    hits = len(Baseball.get_hits(p))  
     hr = len(p[(p['des'].str.contains('In play')) & 
                (p['event']=='Home Run')])
     sf = len( p[(p['des'].str.contains('In play')) & (p['event'].str.contains('Sac Fly'))])

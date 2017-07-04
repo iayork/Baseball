@@ -34,8 +34,62 @@ pitch_abbrs():
 import pandas as pd
 import sqlite3 as sql
 import os.path
- 
+import Baseball
+
+
+# ----------- Definitions ----------------------
+counts = {'Ahead':('0-1','0-2','1-2'),
+          'Behind':('1-0', '2-0', '3-0','2-1','3-1')}
+          
+balls = ['Ball In Dirt','Hit By Pitch','Ball']  
+
     
+"""Standard abbreviations for pitch types """
+pitch_abbrs = {'FT':'Two-seam fastball',
+                'CH':'Changeup',
+                'SL':'Slider',
+                'FF':'Four-seam fastball',
+                'CU':'Curve',
+                'SI':'Sinker',
+                'FC':'Cut fastball',
+                'FS':'Split-finger fastball',
+                'FA':'Fastball',
+                'KC':'Knuckle curve',
+                'PO':'Pitchout',
+                'EP':'Eephus',
+                'IN':'Intentional ball',
+                'SC':'Screwball',
+                'FO':'Forkball',
+                'KN':'Knuckleball',
+                'UN':'Unknown',
+                'AB':'Automatic ball'}
+                
+"""Pitch types grouped by class and their reverse """
+
+ptype_sets = {'Fastballs':['FT', 'FF','SI', 'FC','FA', 'FS','SI','FO'],
+              'Breaking':['SL', 'CB', 'CU', 'KC','SC'],
+              'Knuckleballs':['KN',], 
+              'Offspeed':['CH','SF','EP']}
+
+rev_ptypes = {'CB': 'Breaking',
+              'CH': 'Offspeed',
+              'CU': 'Breaking',
+              'EP': 'Offspeed',
+              'FA': 'Fastballs',
+              'FC': 'Fastballs',
+              'FF': 'Fastballs',
+              'FO': 'Fastballs',
+              'FS': 'Fastballs',
+              'FT': 'Fastballs',
+              'KC': 'Breaking',
+              'KN': 'Knuckleballs',
+              'SC': 'Breaking',
+              'SF': 'Offspeed',
+              'SI': 'Fastballs',
+              'SL': 'Breaking'}
+        
+ 
+# ----------- Databases ----------------------    
 def get_con(year, dbFolder="/Users/iayork/Documents/Baseball/PitchFX", db=False):
     """ dbFolder default="/Users/iayork/Documents/Baseball/PitchFX" """
     if not db:
@@ -95,7 +149,8 @@ def get_pitchab_for_pitcher(pitcher_name, con, reg=True):
         pitchab[param] = pd.to_numeric(pitchab[param]) 
     return pitchab  
 
-    
+# -------- Convert between formats ----------
+
 def bbref_date_to_gdl_date(bbref_date, year=2016):
     """ 
     take date in format "Apr 8" or "Jul 7(1)" and convert to "04-08-16" format
@@ -159,7 +214,25 @@ def bbref_dates_to_gdls(df, year=2016):
                                                             teamD[tm], game_no))
     return gdls
     
+
+def gdl_to_date(gdl): 
+    # Takes gameday_link and returns a date as a string like 05-01-16
+    y, m, d = (gdl.split('_')[1], gdl.split('_')[2], gdl.split('_')[3])
+    return ('%s-%s-%s' % (m, d, y[-2:]))
     
+def gdl_to_datetime(x):
+    # Takes a gameday_link and returns a date as a datetime
+    return pd.to_datetime(gdl_to_date(x), format='%m-%d-%y')
+                             
+    
+def convert_bbref_ip(x):
+    """ 
+    convert series containing innings pitched in ".1", ".2" format 
+    to ".33", ".67" format
+    """  
+    return round(int(x)) + (x-round(int(x)))/0.3
+    
+# ----------------- Misc --------------------    
 def get_bbref_pitch(url, year=2016):
     """ 
     returns a pandas dataframe containing bbref info (not all numeric?)
@@ -215,45 +288,4 @@ def get_bbref_bat(url, year=2016):
         bbref[param] = pd.to_numeric(bbref[param], errors='ignore')
     
     bbref['GDL_Date'] = bbref['Date'].apply(lambda x:Baseball.bbref_date_to_gdl_date(x, year)) 
-    return (bbref) 
-
-
-def gdl_to_date(gdl): 
-    # Takes gameday_link and returns a date as a string like 05-01-16
-    y, m, d = (gdl.split('_')[1], gdl.split('_')[2], gdl.split('_')[3])
-    return ('%s-%s-%s' % (m, d, y[-2:]))
-    
-def gdl_to_datetime(x):
-    # Takes a gameday_link and returns a date as a datetime
-    return pd.to_datetime(gdl_to_date(x), format='%m-%d-%y')
-                             
-    
-def convert_bbref_ip(x):
-    """ 
-    convert series containing innings pitched in ".1", ".2" format 
-    to ".33", ".67" format
-    """  
-    return round(int(x)) + (x-round(int(x)))/0.3
-
-    
-def pitch_abbrs():
-    """A dict of standard abbreviations for pitch types """
-    pitch_abbrs = {'FT':'Two-seam fastball',
-                    'CH':'Changeup',
-                    'SL':'Slider',
-                    'FF':'Four-seam fastball',
-                    'CU':'Curve',
-                    'SI':'Sinker',
-                    'FC':'Cut fastball',
-                    'FS':'Split-finger fastball',
-                    'FA':'Fastball',
-                    'KC':'Knuckle curve',
-                    'PO':'Pitchout',
-                    'EP':'Eephus',
-                    'IN':'Intentional ball',
-                    'SC':'Screwball',
-                    'FO':'Forkball',
-                    'KN':'Knuckleball',
-                    'UN':'Unknown',
-                    'AB':'Automatic ball'}
-    return pitch_abbrs
+    return (bbref)

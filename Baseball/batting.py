@@ -1,13 +1,35 @@
 """
 Functions related to batting 
 
-get_slg_in_box(strikes_in_box)
-    Get slugging percent in a sub-region of the strike zone
+def tb_per_pitch_subzone(df): 
+    Get total bases in a sub-region of the strike zone
     
-    Input: dataframe containing strikes within a specific sub-region
-    output: (total_bases, number_of_hits)
+    Input: dataframe containing pitches within a specific sub-region
+    output: dataframe with 
+        rows = vertical position, 
+        columns = horizontal position, 
+        values = TB per pitch in that subzone
+        
+def hits_per_pitch_subzone(df): 
+    Get hits per pitch in a sub-region of the strike zone
+    
+    Input: dataframe containing pitches within a specific sub-region
+    output: dataframe with 
+        rows = vertical position, 
+        columns = horizontal position, 
+        values = Hits per pitch in that subzone
+    
+def hits_per_subzone(df):  
+    Get hit count (not per pitch) in a sub-region of the strike zone
+    
+    Input: dataframe containing pitches within a specific sub-region
+    output: dataframe with 
+        rows = vertical position, 
+        columns = horizontal position, 
+        values = Hit count in that subzone 
 
-get_box_info(df)
+get_batter_location_success(df)
+    DEPRECATED, use tb_per_pitch_subzone instead 
     Takes a full pitchFX dataframe
     
     Breaks strike zone into sub-regions
@@ -21,15 +43,7 @@ get_box_info(df)
              'hits_per_ptch': hits in box/pitches in box * percent of pitches in box 
              
     
-def get_strikes(df) 
 
-def get_hits(df)
-
-def get_swings_all(df) 
-                               
-def get_swinging_strikes_fouls(df)
-                               
-def get_swinging_strikes(df)
 
 #------Get OBP, SLG, OPS from a PITCHf/x dataframe----------
 def get_atbats_pfx(df)
@@ -46,12 +60,6 @@ import pandas as pd
 import numpy as np
 import Baseball
 
-
-ptype_sets = {'Fastballs':['FT', 'FF','SI', 'FC','FA', 'FS','SI','FO'],
-              'Breaking':['SL', 'CB', 'CU', 'KC','SC'],
-              'Knuckleballs':['KN',], 
-              'Offspeed':['CH','SF','EP']}
-
 def get_center_point(x, y, x_step, y_step):
     """Finds the centerpoint of each sub-region, for plotting purposes"""
     x_point = x + (x_step/2.0)
@@ -59,31 +67,93 @@ def get_center_point(x, y, x_step, y_step):
     return(x_point, y_point) 
     
 
-def get_slg_in_box(strikes_in_box): 
+def hits_per_pitch_subzone(df): 
     """
-    Get slugging percent in a sub-region of the strike zone
+    Get hits per pitch in a sub-region of the strike zone
     
-    Input: dataframe containing strikes (pitches) within a specific sub-region
-    output: (total_bases, number_of_hits) 
+    Input: dataframe containing pitches within a specific sub-region
+    output: dataframe with 
+        rows = vertical position, 
+        columns = horizontal position, 
+        values = Hits per pitch in that subzone
     """
     
-    if len(strikes_in_box) == 0:
-        return (0, 0)
-    else:
-        singles = strikes_in_box[(strikes_in_box['des'].str.contains('In play')) & 
-                                (strikes_in_box['event']=='Single')]
-        doubles = strikes_in_box[(strikes_in_box['des'].str.contains('In play')) & 
-                                (strikes_in_box['event']=='Double')] 
-        triples = strikes_in_box[(strikes_in_box['des'].str.contains('In play')) & 
-                                (strikes_in_box['event']=='Triple')] 
-        homers = strikes_in_box[(strikes_in_box['des'].str.contains('In play')) & 
-                                (strikes_in_box['event']=='Home Run')]
-        tb_in_box = len(singles) + len(doubles) * 2 + len(triples) * 3 + len(homers) * 4 
-        hits_in_box = len(singles) + len(doubles) + len(triples) + len(homers)
-        return (tb_in_box, hits_in_box ) 
+    hits_subzoneD = {} 
+    for row in  np.arange(-1.5, 1.5, 0.6): 
+        for col in np.arange(1, 4, 0.6):
+            subzone = df[(df['px']>=row) & 
+                         (df['px']<row+0.6) & 
+                         (df['pz']>=col) & 
+                         (df['pz']<col+0.6)] 
+                         
+            hitsD = Baseball.tb_per_pitch(subzone)
+            hits = hitsD['Hits']
+            pitches = hitsD['Pitches']
+            try:
+                hits_per_pitch = hits/pitch
+            except ZeroDivisionError:
+                hits_per_pitch = 0 
+            
+            try:
+                hits_subzoneD[row].append( hits_per_pitch ) 
+            except KeyError:
+                hits_subzoneD[row] =  [hits_per_pitch, ] 
+    return pd.DataFrame(hits_subzoneD, index=np.arange(1, 4, 0.6))     
+    
+    
+    
+def hits_per_subzone(df): 
+    """
+    Get hit count (not per pitch) in a sub-region of the strike zone
+    
+    Input: dataframe containing pitches within a specific sub-region
+    output: dataframe with 
+        rows = vertical position, 
+        columns = horizontal position, 
+        values = Hit count in that subzone
+    """
+    
+    hits_subzoneD = {} 
+    for row in  np.arange(-1.5, 1.5, 0.6): 
+        for col in np.arange(1, 4, 0.6):
+            subzone = df[(df['px']>=row) & 
+                         (df['px']<row+0.6) & 
+                         (df['pz']>=col) & 
+                         (df['pz']<col+0.6)] 
+            hitsD = Baseball.tb_per_pitch(subzone)
+            try:
+                hits_subzoneD[row].append( hitsD['Hits']) 
+            except KeyError:
+                hits_subzoneD[row] =  [hitsD['Hits'], ] 
+    return pd.DataFrame(hits_subzoneD, index=np.arange(1, 4, 0.6))     
+    
+def tb_per_pitch_subzone(df): 
+    """
+    Get total bases in a sub-region of the strike zone
+    
+    Input: dataframe containing pitches within a specific sub-region
+    output: dataframe with 
+        rows = vertical position, 
+        columns = horizontal position, 
+        values = TB per pitch in that subzone
+    """
+    
+    tb_subzoneD = {} 
+    for row in  np.arange(-1.5, 1.5, 0.6): 
+        for col in np.arange(1, 4, 0.6):
+            subzone = df[(df['px']>=row) & 
+                         (df['px']<row+0.6) & 
+                         (df['pz']>=col) & 
+                         (df['pz']<col+0.6)] 
+            tbD = Baseball.tb_per_pitch(subzone)
+            try:
+                tb_subzoneD[row].append( tbD['TB_per_pitch']) 
+            except KeyError:
+                tb_subzoneD[row] =  [tbD['TB_per_pitch'], ] 
+    return pd.DataFrame(tb_subzoneD, index=np.arange(1, 4, 0.6)) 
     
 
-def get_box_info(df):
+def get_batter_location_success(df):
     """
     Takes a pitchFX dataframe
     
@@ -91,13 +161,20 @@ def get_box_info(df):
     Finds the pitches in each subregion, calculates slg and hits in each
     Returns a dict box_infoD[(ctr_x, ctr_y)] containing 
              'pitch_pct': (Percent of all pitches that are in each box) 
-             'slgs': (total bases per hit in box)
+             'TB': (total bases in box)
+             'TB_per_pitch'
              'hits': (total hits in box)
-             'hits_per_ptch': hits in box/pitches in box * percent of pitches in box
+             'hits_per_ptch': hits in box/pitches in box
     """
+    print("""This function is deprecated and probably doesn't work correctly anyway
+             Use tb_per_pitch_subzone instead""")
+    
     (top, bottom,left,right, x_step, y_step) = Baseball.official_zone_25_boxes()
     
     assert len(df) > 0, 'Empty dataframe' 
+    # Only include pitches that are inside the "official strike zone 25 boxes"
+    total_pitches = len(df[(df['px']>=left) & (df['px']<=right) & 
+                           (df['pz']>=bottom) & (df['pz']<=top)])
 
     box_infoD = {}
     
@@ -110,47 +187,26 @@ def get_box_info(df):
                      (df['pz'] >= y) & (df['pz'] < y + y_step)]
             
             if len(box) == 0:
-                box_infoD[(ctr_x, ctr_y)]['slgs'] = 0
+                box_infoD[(ctr_x, ctr_y)]['pitch_pct'] = 0
+                box_infoD[(ctr_x, ctr_y)]['TB'] = 0
                 box_infoD[(ctr_x, ctr_y)]['hits'] = 0
                 box_infoD[(ctr_x, ctr_y)]['hits_per_pitch'] = 0
-                box_infoD[(ctr_x, ctr_y)]['pitch_pct'] = 0
+                box_infoD[(ctr_x, ctr_y)]['TB_per_pitch'] = 0
             else: 
-                (tb_in_box, hits_in_box) = get_slg_in_box(box) 
+                (tb_in_box, hits_in_box) = get_TB_in_box(box) 
                 
+                box_infoD[(ctr_x, ctr_y)]['pitch_pct'] = len(box)/total_pitches
+                box_infoD[(ctr_x, ctr_y)]['TB'] = tb_in_box
+                box_infoD[(ctr_x, ctr_y)]['TB_per_pitch'] = tb_in_box/len(box)
+                box_infoD[(ctr_x, ctr_y)]['hits'] = hits_in_box
                 box_infoD[(ctr_x, ctr_y)]['hits_per_pitch'] = hits_in_box/len(box)
-                box_infoD[(ctr_x, ctr_y)]['pitch_pct'] = len(box)/len(df)*100
-            
-                if hits_in_box == 0:
-                    box_infoD[(ctr_x, ctr_y)]['slgs'] = 0
-                    box_infoD[(ctr_x, ctr_y)]['hits'] = 0
-                else:
-                    box_infoD[(ctr_x, ctr_y)]['slgs'] = tb_in_box/hits_in_box
-                    box_infoD[(ctr_x, ctr_y)]['hits'] = hits_in_box 
                 
     return (box_infoD)
              
-    
-def get_strikes(df):
-    return df[~(df['des'].isin(['Ball', 'Hit By Pitch', 'Ball In Dirt', 'Pitchout',
-                               'Intent Ball', 'Automatic Ball']))] 
 
-def get_hits(df): 
-    return df[(df['des'].str.contains('In play') ) & 
-              (df['event'].isin(['Single','Double','Triple','Home Run']))]  
-                               
-def get_swings_all(df):
-    return df[~(df['des'].isin(['Ball', 'Hit By Pitch', 'Ball In Dirt', 'Pitchout',
-                                'Intent Ball', 'Automatic Ball', 'Called Strike']))] 
-                               
-def get_swinging_strikes_fouls(df):
-    return df[(df['des'].isin(['Foul', 'Swinging Strike', 'Foul (Runner Going)',
-                               'Swinging Strike (Blocked)', 'Foul Tip']))]
-                               
-def get_swinging_strikes(df):
-    return df[(df['des'].isin(['Swinging Strike', 'Swinging Strike (Blocked)']))] 
-    
     
 #------Get OBP, SLG, OPS from a PITCHf/x dataframe----------
+
 def get_atbats_df_pfx(df):
     no_atbat = ['Walk', 'Intent Walk', 'Sac Bunt', 'Hit By Pitch', 
                 'Sac Fly', 'Catcher Interference', 'Fan interference',
@@ -188,7 +244,7 @@ def get_obp_pfx(df):
     obp_pa = Baseball.get_pa_for_obp(df)
     return on_base/obp_pa
 
-def get_slg_pfx(df): 
+def get_slg_per_atbat_pfx(df): 
     """Total bases per ATBAT """ 
     ab = Baseball.get_atbats_df_pfx(df)
     events = list(ab.groupby(['gameday_link','num']).first()['event'].values)
@@ -198,7 +254,7 @@ def get_slg_pfx(df):
     b4 = events.count('Home Run') * 4
     return (b1 + b2 + b3 + b4)/len(events)
     
-def tb_per_pitch(df):
+def hits_tb_per_pitch(df):
     hit_des = ['In play, no out','In play, run(s)']
     hit_event = ['Single','Double','Triple','Home Run']
     hits = df[(df['event'].isin(hit_event)) & 
@@ -209,7 +265,10 @@ def tb_per_pitch(df):
     b3 = len(hits[hits['event']=='Triple']) * 3
     b4 = len(hits[hits['event']=='Home Run']) * 4
     tb = (b1 + b2 + b3 + b4)
-    tb_per_pitch = (b1 + b2 + b3 + b4)/len(df)
+    if len(df) == 0:
+        tb_per_pitch = 0
+    else:
+        tb_per_pitch = (b1 + b2 + b3 + b4)/len(df)
     return {'Pitches':len(df),
             'Hits':len(hits),
             'TB':tb,
@@ -217,7 +276,7 @@ def tb_per_pitch(df):
     
 def get_tb_per_pitch_pfx(df): 
     """Total bases per pitch, deprecated because tb_per_pitch is more useful """   
-    return (Baseball.get_slg_in_box(df)[0])/len(df)
+    return (Baseball.get_TB_in_box(df)[0])/len(df)
 
 def get_ops_pfx(df):
     slg = Baseball.get_slg_pfx(df)

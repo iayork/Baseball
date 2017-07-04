@@ -29,17 +29,23 @@ circles(x, y, s, ax, ec, fc='white', lw=2.5, a=0.2, **kwargs):
 half_circle(x, y, s, c, ax, a=0.5, **kwargs):
     For drawing the pitch indicators in the game characterization
 
-basic_layout_pitcher_2(year=2015): 
+basic_layout_pitcher_2(year=2016): 
     Visualize the strike zone from the umpire's view for a pitcher
     Two charts, one for LHB, one for RHB (one pitch type only)
     Plot the de facto strike zone for the year on each plot 
     
-basic_layout_pitcher_4(year=2015)
-basic_layout_pitcher_6(year=2015)
-basic_layout_pitcher_8(year=2015)
-basic_layout_pitcher_10(year=2015)
+basic_layout_pitcher_4(year=2016)
+basic_layout_pitcher_6(year=2016)
+basic_layout_pitcher_8(year=2016)
+basic_layout_pitcher_10(year=2016)
+
+
+def show_batter(ax, stand, xyl=[1.35, 2], xyr=[-1.35, 2],
+                img_path_l="/Users/iayork/Documents/Baseball/Batter_Silhouette_LHB_2.png",
+                img_path_r="/Users/iayork/Documents/Baseball/Batter_Silhouette_RHB_2.png"):
+    Batter silouhettes
     
-basic_plot_batter(stand, year=2015): 
+basic_plot_batter(stand, year=2016): 
     Visualize the strike zone from the umpire's view for a batter
     Two charts, one for LHP, one for RHP
     Plot the de facto strike zone for the year on each plot 
@@ -102,10 +108,11 @@ ptype_clrs = {  'FF':muted[2],
                 'FO':set2[1],
                 'SI':muted[0],
                 'FS':set2[1],  
-                'KN':muted[0]}
+                'KN':muted[5],  
+                'EP':'grey'}
     
 
-def get_2D_pxpz_hist(df, rot=True, bins=10):
+def get_2D_pxpz_hist(df, rot=True, smooth=True, bins=10):
     """
     Get a 2D histogram of px/pz values from a dataframe 
     
@@ -116,10 +123,14 @@ def get_2D_pxpz_hist(df, rot=True, bins=10):
     from scipy import ndimage 
     
     hmap, xedges, yedges = np.histogram2d(x=df['px'].values, 
-                                        y=df['pz'].values,
-                                        range=[[-2.5, 2.5], [0, 5]],
-                                        bins=bins)
+                                          y=df['pz'].values,
+                                          range=[[-2.5, 2.5], [0, 5]],
+                                          bins=bins)
     extent = [xedges[0], xedges[-1], yedges[0], yedges[-1]]
+    
+    if smooth:
+        (xnew, ynew, hmap) = Baseball.smooth_2D_hist(xedges, yedges, hmap) 
+        extent = [xnew[0], xnew[-1], ynew[0], ynew[-1]] 
     
     if rot:
         return (extent, ndimage.rotate(hmap, 90, reshape=False))
@@ -290,7 +301,7 @@ def half_circle(x, y, s, c, ax, a=0.5, **kwargs):
     return collection     
     
     
-def basic_layout_pitcher_2(year=2015):
+def basic_layout_pitcher_2(year=2016):
     """
     Visualize the strike zone from the umpire's view for a pitcher
     Two charts, one for LHB, one for RHB (one pitch type only)
@@ -316,7 +327,7 @@ def basic_layout_pitcher_2(year=2015):
     ax2.set_yticklabels([])
     ax2.set_ylabel('')   
     
-    ax1.text(-2.3, 0.2, '@soshbaseball', fontsize=12, alpha=0.8)
+    #ax1.text(-2.3, 0.2, '@soshbaseball', fontsize=12, alpha=0.8)
     
     plt.tight_layout()
     
@@ -325,7 +336,7 @@ def basic_layout_pitcher_2(year=2015):
   
     
     
-def basic_layout_pitcher_4(year=2015):
+def basic_layout_pitcher_4(year=2016):
     """
     Visualize the strike zone from the umpire's view for a pitcher
     Four charts, two for LHB, two for RHB 
@@ -361,7 +372,7 @@ def basic_layout_pitcher_4(year=2015):
     return (fig, ax1, ax2, ax3, ax4) 
     
     
-def basic_layout_pitcher_6(year=2015):
+def basic_layout_pitcher_6(year=2016):
     """
     Visualize the strike zone from the umpire's view for a pitcher
     Six charts, three for LHB, three for RHB 
@@ -400,7 +411,7 @@ def basic_layout_pitcher_6(year=2015):
     
     
     
-def basic_layout_pitcher_8(year=2015): 
+def basic_layout_pitcher_8(year=2016): 
     """
     Visualize the strike zone from the umpire's view for a pitcher
     Four rows of 2 charts, one for LHB, one for RHB
@@ -435,7 +446,7 @@ def basic_layout_pitcher_8(year=2015):
 
     
     
-def basic_layout_pitcher_10(year=2015): 
+def basic_layout_pitcher_10(year=2016): 
     """
     Visualize the strike zone from the umpire's view for a pitcher
     Five rows of 2 charts, one for LHB, one for RHB
@@ -473,7 +484,7 @@ def basic_layout_pitcher_10(year=2015):
     return (fig,ax1,ax2, ax3,ax4,ax5,ax6,ax7,ax8,ax9,ax10)
     
     
-def basic_layout_pitcher_12(year=2015): 
+def basic_layout_pitcher_12(year=2016): 
     """
     Visualize the strike zone from the umpire's view for a pitcher
     Six rows of 2 charts, one for LHB, one for RHB
@@ -503,9 +514,35 @@ def basic_layout_pitcher_12(year=2015):
 
     plt.tight_layout()
     return (fig,ax1,ax2, ax3,ax4,ax5,ax6,ax7,ax8,ax9,ax10,ax11,ax12)
+    
+    
+def show_batter(ax, stand, xyl=[1.35, 2], xyr=[-1.35, 2], zoom=0.17,
+                img_folder_l='/Users/iayork/Downloads',
+                img_file_l='lefty_trace_d.png',
+                img_folder_r='/Users/iayork/Downloads',
+                img_file_r='righty_trace_d.png') :
+
+    # img_folder_l="/Users/iayork/Documents/Baseball",
+    # img_file_l="Batter_Silhouette_LHB_2.png",
+    # img_folder_r="/Users/iayork/Documents/Baseball",
+    # img_file_r="Batter_Silhouette_RHB_2.png")
+    
+    from matplotlib.offsetbox import OffsetImage, AnnotationBbox
+    from matplotlib._png import read_png
+    import os.path
+     
+    if stand=='L':
+        img = read_png(os.path.join(img_folder_l, img_file_l))
+        xy = xyl
+    elif stand=='R':
+        img = read_png(os.path.join(img_folder_r, img_file_r))
+        xy = xyr
+    imgbox = OffsetImage(img,  zoom=zoom, alpha=0.2)
+    ab = AnnotationBbox(imgbox, xy=xy, xycoords='data', frameon=False)
+    ax.add_artist(ab)
 
 
-def basic_plot_batter(stand, year=2015):
+def basic_plot_batter(stand, year=2016):
     """
     Visualize the strike zone from the umpire's view for a batter
     Two charts, one for LHP, one for RHP

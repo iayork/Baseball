@@ -23,6 +23,7 @@ def pitch_usage(df):
 import pandas as pd 
 import numpy as np
 from math import sqrt
+import Baseball
 
 
 def pitch_flight(df_row): 
@@ -117,19 +118,22 @@ def speed_at_feet(df, feet=55):
 def gdl_to_date(x):
     return '%s-%s-%s' % (x.split('_')[2], x.split('_')[3], x.split('_')[1])
     
-def pitch_usage(df):
+def pitch_usage_games(df):
     # Turn a PITCHf/x dataframe into per-game pitch usage percents 
-    u1 = pd.DataFrame(df.groupby(['gameday_link','pitch_type']).count()['count'])
-    u1 = u1.reset_index()
-    u1.rename(columns={'pitch_type':'Pitch type'}, inplace=True)
-    u1['Date'] = u1['gameday_link'].apply(gdl_to_date)
-    u2 = u1.pivot(index='Date',columns='Pitch type',values='count').fillna(0)
-    u2['Total'] = u2.sum(axis=1)
-    for ptype in u2.columns[:-1]:
-        u2['%s_pct' % ptype] = u2[ptype]/u2['Total']*100
-    u_pct = u2[[x for x in u2.columns if 'pct' in x]]
-    u_pct.rename(columns={x:x.replace('_pct','') for x in u_pct.columns}, inplace=True)
-    return u_pct
+    
+    usage = pd.DataFrame(df.groupby(['gameday_link','pitch_type']).count()['count'])
+    usage = usage.reset_index()
+    usage.rename(columns={'pitch_type':'Pitch type'}, inplace=True)
+    
+    usage['Date'] = usage['gameday_link'].apply(gdl_to_date)
+    usage2 = usage.pivot(index='Date',columns='Pitch type',values='count').fillna(0)
+    usage2['Total'] = usage2.sum(axis=1)
+
+    for ptype in usage2.columns[:-1]:
+        usage2['%s_pct' % ptype] = usage2[ptype]/usage2['Total']*100
+    usage_pct = usage2[[x for x in usage2.columns if 'pct' in x]].copy()
+    usage_pct.rename(columns={x:x.replace('_pct','') for x in usage_pct.columns}, inplace=True)
+    return usage_pct
     
 def pitch_usage_year(df):
     # Turn a PITCHf/x dataframe into per-year pitch usage percents 
@@ -137,3 +141,90 @@ def pitch_usage_year(df):
     usage_yr['Percent'] = usage_yr.apply(lambda x:x/usage_yr['count'].sum(axis=0)*100)
     usage_yr = usage_yr.drop(['count'],axis=1)
     return usage_yr
+    
+#------Functions for calculating situational pitch usage--------
+
+def get_usage_all_counts(df, ptypes=None):
+    # Show pitch usage in each count
+    if ptypes is None:
+        ptypes = df['pitch_type'].unique()
+    countD = {}
+    for count in ['0-0', '0-1', '0-2', 
+                  '1-0', '1-1', '1-2',
+                  '2-0', '2-1', '2-2',
+                  '3-0', '3-1', '3-2']:
+        c = df[df['count']==count]
+        countD[count] = {}
+        countD[count]['Total'] = len(c)
+        for ptype in ptypes:
+            countD[count]['%s%%' % ptype] = '%.1f' % ((len(c[c['pitch_type']==ptype]))/len(c) * 100)
+    return pd.DataFrame(countD)
+
+def get_countD(df, ptypes):
+    countD = {}
+    for count_type in ['Ahead', 'Behind']:
+        c = df[df['count'].isin(Baseball.counts[count_type])]
+        countD[count_type] = {}
+        countD[count_type]['Total'] = len(c)
+        for ptype in ptypes:
+            countD[count_type][ptype] = (len(c[c['pitch_type']==ptype]))/len(c) * 100
+
+    return pd.DataFrame(countD)
+
+def get_usage(df):
+    # takes the full dataframe
+    usage_conditions = df[['count','pitch_type']].groupby('pitch_type').count()/len(df) * 100
+    usage_conditions.rename(columns={'count':'All'},inplace=True)
+    
+    for stand in ['L','R']:
+        total = len(df[df['stand']==stand])
+        tmp = df[df['stand']==stand][['count','pitch_type']].groupby('pitch_type').count()/total * 100
+        tmp.rename(columns={'count':stand},inplace=True)
+        usage_conditions = usage_conditions.merge(tmp, left_index=True, right_index=True, how='outer') 
+        usage_conditions.rename(columns={'L':'LHB', 'R':'RHB'}, inplace=True)
+    return usage_conditions
+    
+def pitch_usage_situational(df, ptypes=None):
+    # Turn a PITCHf/x dataframe into pitch usage percents 
+    # including situations (vs RHB and LHB, ahead and behind)
+    if ptypes is None:
+        ptypes = df['pitch_type'].unique()
+    countDF = get_countD(df, ptypes)
+    usage_conditions = get_usage(df)
+    usage_conditions = usage_conditions.merge(countDF, 
+                                              left_index=True, 
+                                              right_index=True)
+    return usage_conditions
+    
+    
+#------- Pitch values - Total bases/100 pitches, balls/100 pitches -------
+
+def get_b100(df, ptype=None):
+    # Balls per 100 pitches 
+    # If no pitch type is given, give results for the whole dataframe
+    
+    if ptype is None:
+        pt = df
+    else:
+        pt = df[df['pitch_type']==ptype] 
+    b = pt[pt['des'].isin(Baseball.balls)] 
+    b100 = len(b)/len(pt)*100
+    return b100
+
+def get_b100_tb100_per_ptype(df, ptypes=None):
+    if ptypes is None:
+        ptypes = df['pitch_type'].unique()
+    tb100sD = {}
+    b100sD = {}
+    for ptype in ptypes: 
+        try: 
+            ptype_df = df[df['pitch_type']==ptype]
+            tb100sD[ptype] = Baseball.hits_tb_per_pitch(ptype_df)['TB_per_pitch']*100
+            b100sD[ptype] = get_b100(ptype_df)
+        except ZeroDivisionError:
+            tb100sD[ptype]  = np.nan
+            b100sD[ptype] = np.nan
+    
+    return(tb100sD, b100sD)
+
+
