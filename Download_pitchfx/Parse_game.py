@@ -130,15 +130,20 @@ class Parse_game():
     parser = Parse_game(gdl) 
     if parser.parse_game():  # parse_game returned True, therefore game exists 
         try:
-            parser.parse_boxscore()  # Yields boxscoreDF
-            parser.parse_player_coach_umpires()  # Yields playerDF, coachDF, umpireDF
-            # Yields atbatDF, pitchDF, runnerDF, poDF, actionDF
-            parser.parse_ab_pitch_runner_action_po() 
-            parser.parse_hip() # Yields hipDF
+            parser.parse_boxscore()                     # boxscoreDF
+            parser.parse_player_coach_umpires()         # playerDF, 
+                                                          coachDF, 
+                                                          umpireDF
+            parser.parse_ab_pitch_runner_action_po()    # atbatDF, 
+                                                          pitchDF, 
+                                                          runnerDF, 
+                                                          poDF, 
+                                                          actionDF 
+            parser.parse_hip()                          # hipDF
     
     """
     
-    # PITCHrx starts with miniscoreboard.xml per date, which lists all the 
+    # pitchRx starts with miniscoreboard.xml per date, which lists all the 
     # game information in one xml file. This seems to be where they get the 
     # gameday_link information (also media, which I don't collect)
     
@@ -205,7 +210,7 @@ class Parse_game():
             
     def parse_boxscore(self):
         """ The inning-by-inning boxscore
-            PITCHr/x does not download this, but it might be useful 
+            PitchRx does not download this, but it might be useful 
         """
         try:
             tree = etree.parse('%s%s' % (self.gameday_url,'rawboxscore.xml'))

@@ -55,6 +55,8 @@ from bs4 import BeautifulSoup as Soup
 import pandas as pd
 import numpy as np
 import os.path
+from datetime import datetime
+import sys
 
 import sqlite3 as sql
 from sqlite3 import OperationalError
@@ -70,6 +72,25 @@ from Parse_game import Parse_game
 dbFolder = "/Users/iayork/Documents/Baseball/"
 
 # ------------------- SQL functions -------------------------           
+def write_info_to_sql(dict_of_dataframes, sql_db):  
+    con = sql.connect(os.path.join(dbFolder, 'PitchFX', sql_db))
+    for df_name, df in dict_of_dataframes.items():  
+        ### XXX CHECK - does df_name, df work properly from .items()
+        try:
+            update_sql(df, df_name, con)
+        except Exception as exc:  
+            # If game is broken, don't try to save any more data
+            # TODO: Depending on exception, just add the game to list of bad games
+            # and continue.  There are legit reasons for empty games
+            raise  
+         
+            if saved != True:
+                bad_gdls[parser.gdl] = saved
+                #print (saved)
+    con.commit()
+    con.close()  
+
+       
 def update_sql(df, df_name, con):
     """Update SQLite database; alter table to add new columns if needed"""
     try:
@@ -94,39 +115,8 @@ def update_sql(df, df_name, con):
             except:
                 raise 
 
-def write_info_to_sql(dict_of_dataframes):  
-    con = sql.connect(os.path.join(dbFolder, 'PitchFX', 'MBL_Scrape_test_threaded.db'))
-    for df_name in dict_of_dataframes.keys(): 
-        df = dict_of_dataframes[df_name]
-        try:
-            update_sql(df, df_name, con)
-        except Exception as exc:  
-            # If game is broken, don't try to save any more data
-            # TODO: Depending on exception, just add the game to list of bad games
-            # and continue.  There are legit reasons for empty games
-            raise  
-         
-            if saved != True:
-                bad_gdls[parser.gdl] = saved
-                #print (saved)
-    con.commit()
-    con.close()  
-
-       
-def remove_duplicate_rows():
-    
-    con = sql.connect(os.path.join(dbFolder, 'PitchFX', 'MBL_Scrape_test_threaded.db'))
-    for table in ('action', 'coach', 'hip', 'pitch', 'po', 'umpire', 
-                  'atbat', 'game', 'boxscore', 'player', 'runner'):
-        try:
-            df = pd.read_sql("select * from %s" % table, con)
-            df.drop_duplicates(inplace=True)
-            df.to_sql(name=table, if_exists='replace', con=con)
-        except (OperationalError, DatabaseError):
-            pass
-
-def check_all_games_written(gameday_links):
-    con = sql.connect(os.path.join(dbFolder, 'PitchFX', 'MBL_Scrape_test_threaded.db'))
+def check_all_games_written(gameday_links, sql_db):
+    con = sql.connect(os.path.join(dbFolder, 'PitchFX', sql_db))
     c = con.cursor()
     try:
         c.execute("""Select distinct gameday_link from game""")
@@ -141,34 +131,46 @@ def check_all_games_written(gameday_links):
     except OperationalError:
         pass
 
+
+def remove_duplicate_rows(sql_db):
+    con = sql.connect(os.path.join(dbFolder, 'PitchFX', sql_db))
+    for table in ('action', 'coach', 'hip', 'pitch', 'po', 'umpire', 
+                  'atbat', 'game', 'boxscore', 'player', 'runner'):
+        try:
+            df = pd.read_sql("select * from %s" % table, con)
+            df.drop_duplicates(inplace=True)
+            df.to_sql(name=table, if_exists='replace', con=con)
+        except (OperationalError, DatabaseError):
+            pass
+
 # ------------User input for start/end --------------                
 def get_ymd_from_input():
     """Ask for input on year, day/month to start with"""
     try:
-        year_start = int(input('Year: '))
+        mdy = input("Start date in mm-dd-yyyy format: ")
+        (m,d,y) = mdy.split('-')
+        year = int(y)
+        month_start = int(m)
+        day_start = int(d)
     except:
-        year_start = 2015
+        raise 
     try:
-        month_start = int(input('Start month: '))
+        mdy = input("End date in mm-dd-yyyy format: ")
+        (m,d,y) = mdy.split('-')
+        year_end = int(y)
+        month_end = int(m)
+        day_end = int(d)
     except:
-        month_start = 1
+        raise 
     try:
-        day_start = int(input('Start day : '))
+        sql_db = input("SQL database: ")
     except:
-        day_start = 1
-    try:
-        month_end = int(input('End month: '))
-    except:
-        month_end = 12
-    try:
-        day_end = int(input('End day : '))
-    except:
-        day_end = 31
-    return (year_start, month_start, month_end, day_start, day_end)
+        raise 
+    assert year == year_end, "Can't collect more than one year at a time (%s, %s)" % (year, year_end)
+    return (year, month_start, month_end, day_start, day_end, sql_db)
     
 
 def get_month_urls(year_url, month_start, month_end):  
-
     # ------------------- Get URLs for all months in a year ------
     r = requests.get(year_url)
     year = Soup(r.text, 'lxml')
@@ -178,25 +180,22 @@ def get_month_urls(year_url, month_start, month_end):
     month_urls = [x for x in month_urls if int(x.replace('month_','').replace('/','')) <= int(month_end)]
     return month_urls
     
-def get_day_urls(year_url, month_url, month_start, month_end, day_start, day_end):
-    # TODO - Check if I should have put day_end instead of day_start in the month_end check
+def get_day_urls(year_url, month_url, year, start_date, end_date): 
     m = month_url.replace('month_', '').strip('/')
     r = requests.get('%s%s' % (year_url, month_url))
     month = Soup(r.text, 'lxml')
     day_links = [a.attrs['href'] for a in month.findAll('a') if 'day' in a.text] 
-    day_urls = ['%s%s%s' % (year_url, month_url, day_link) for day_link in day_links]
     
-    # only keep days between start and end
-    if int(m) == int(month_start):
-        day_urls = ['%s%s%s' % (year_url, month_url, day_link) for day_link in day_links 
-                    if int(day_link.replace('day_','').strip('/')) >= int(day_start)]
-    if int(m) == int(month_end): 
-        day_urls = ['%s%s%s' % (year_url, month_url, day_link) for day_link in day_links 
-                    if int(day_link.replace('day_','').strip('/')) >= int(day_start)] # day_end???
+    # Only keep dates that are between the start and end date
+    day_links = [x for x in day_links if start_date <= convert_ymd_to_datetime(year, m, x.split('_')[-1].strip('/')) <= end_date]
+    day_urls = ['%s%s%s' % (year_url, month_url, day_link) for day_link in day_links]
     
     print ('Month %s: Collected %i day URLs; now collecting gameday_link URLs' % (m, len(day_urls)))
     
     return day_urls 
+    
+def convert_ymd_to_datetime(y,m,d):
+    return datetime.strptime('%s-%s-%s' % (y, m, d), '%Y-%m-%d')
     
 # -------------- Other functions-------------------------
     
@@ -233,16 +232,17 @@ def collect_gameday_urls(day_url):
 
 # ======================= Main script ============================================
 def main():    
-    (year_start, month_start, month_end, day_start, day_end) = get_ymd_from_input() 
-    assert month_end >= month_start, "End month can't be earlier than start month"
-    assert day_end >= day_start, "End day can't be earlier than start day" 
+    (year, month_start, month_end, day_start, day_end, sql_db) = get_ymd_from_input() 
+    start_date = convert_ymd_to_datetime(year, month_start, day_start)
+    end_date = convert_ymd_to_datetime(year, month_end, day_end)
     
-    print ("Collecting games from %s-%s-%s to %s-%s-%s" % (month_start, day_start, year_start,
-                                                          month_end, day_end, year_start))
-
+    assert end_date >= start_date, "End date can't be earlier than start date" 
+    
+    print ("Collecting games from %s-%s-%s to %s-%s-%s" % (month_start, day_start, year,
+                                                          month_end, day_end, year))
             
     # Set the base URL for the year 
-    year_url = 'http://gd2.mlb.com/components/game/mlb/year_%s/' % year_start
+    year_url = 'http://gd2.mlb.com/components/game/mlb/year_%s/' % year
 
     # Get URLs for all months in a year
     month_urls = get_month_urls(year_url, month_start, month_end)
@@ -251,7 +251,7 @@ def main():
 
     for month_url in month_urls: 
         bad_gdls = {}    # Collect a month's worth of bad gameday_links to print
-        day_urls = get_day_urls(year_url, month_url, month_start, month_end, day_start, day_end) 
+        day_urls = get_day_urls(year_url, month_url, year, start_date, end_date) 
 
         # ------------------- Multiprocess - Collect gameday_links from days -------
 
@@ -284,7 +284,7 @@ def main():
                 #   'action':   self.actionDF, 
                 #   'hip':      self.hipDF}
                 for result in results:
-                    write_info_to_sql(result)
+                    write_info_to_sql(result, sql_db)
                 
                 # Are we done?  Give feedback
                 if (i+50) > len(gameday_links):
@@ -293,14 +293,14 @@ def main():
                    print ('Parsed and saved %i of %i games' % ((i+50), len(gameday_links)))
     
             # Check if all games are written to SQLite
-            check_all_games_written(gameday_links)
+            check_all_games_written(gameday_links, sql_db)
 
             if len(bad_gdls) > 0:
                 print ('Bad GDLs: %s' % ('\n'.join(['%s (%s)' % (x[0], x[1]) for x in bad_gdls.items()] )))
             
         # ------ Remove duplicate rows via pandas ------------
         
-        remove_duplicate_rows()
+        remove_duplicate_rows(sql_db)
         
             
 if __name__ == "__main__":
