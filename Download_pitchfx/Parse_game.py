@@ -167,7 +167,7 @@ class Parse_game():
             gameD = dict(game.attrib) 
         except:
             #raise
-            #print (self.gdl, '%s%s' % (self.gameday_url, 'linescore.xml'))
+            #print ("Bad gameday: " , self.gdl, '%s%s' % (self.gameday_url, 'linescore.xml'))
             return False 
         
         # Then update gameD with extra information in game.xml

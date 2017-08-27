@@ -84,38 +84,38 @@ def write_info_to_sql(dict_of_dataframes, sql_db):
             # and continue.  There are legit reasons for empty games
             raise  
          
-            if saved != True:
-                bad_gdls[parser.gdl] = saved
-                #print (saved)
+            #if saved != True:
+            #    bad_gdls[parser.gdl] = saved
+            #    print (saved)
     con.commit()
     con.close()  
 
        
 def update_sql(df, df_name, con):
-    """Update SQLite database; alter table to add new columns if needed"""
+    """Update SQLite database; alter table to add new columns if needed""" 
+    # If table already exists, check for columns in df not in sql
+    check_table = """SELECT name FROM sqlite_master WHERE type='table' AND name='%s' """
+    c = con.cursor()
+    c.execute(check_table % df_name)
+    if c.fetchone() is not None:
+        c.execute('select * from %s' % df_name)
+        sql_cols = [x[0] for x in c.description]
+        if len(set(df.columns) - set(sql_cols)) > 0:
+            # Add missing columns if necessary
+            for new_col in set(df.columns) - set(sql_cols):  
+                alter_table = 'ALTER TABLE %s ADD COLUMN "%s" TEXT;' % (df_name, new_col) 
+                c.execute(alter_table)  
+        
     try:
-        df.to_sql(df_name, if_exists='append', con=con, index=False)  
-    except OperationalError as oe: # No column exists?
-        error_info = oe.args[0]
-        if 'has no column named ' in error_info:
-            # Add the missing column to the table 
-            table = error_info.split()[1]
-            column_to_add = error_info.split()[-1]
-            alter_table = 'ALTER TABLE %s ADD COLUMN "%s" TEXT;' % (table, column_to_add) 
-            c = con.cursor()
-            c.execute(alter_table)
-            con.commit()
-            # Having updated the table, start updating again
-            update_sql(df, df_name, con) 
-        else:    
-            try:
-                # "index=False" seems problematic some times - Why?
-                # TODO - eliminate index that comes from dataframe?
-                df.to_sql(name, if_exists='append', con=con)  
-            except:
-                raise 
+        df.to_sql(df_name, if_exists='append', con=con, index=False) 
+        con.commit() 
+    except sql.OperationalError as oe: 
+        con.commit()
+        raise
+    
 
 def check_all_games_written(gameday_links, sql_db):
+    # TODO: Save reason for failed games along with the failures
     con = sql.connect(os.path.join(dbFolder, 'PitchFX', sql_db))
     c = con.cursor()
     try:
@@ -126,10 +126,14 @@ def check_all_games_written(gameday_links, sql_db):
             print ("Saved %i games" % ( len(gameday_links)))
         else:
             print ("Not saved to SQL: ")
-            print (set([x.strip('/').split('/')[-1].strip('gid_') for x in gameday_links]) - (set(sql_gdls)))
+            print (set([x.strip('/').split('/')[-1].strip('gid_') for x in gameday_links]) - 
+                   (set(sql_gdls)))
     
-    except OperationalError:
+    except sql.OperationalError:
+        #print("CAUGHT OE")
+        #sys.exit()
         pass
+        #raise
 
 
 def remove_duplicate_rows(sql_db):
@@ -140,7 +144,7 @@ def remove_duplicate_rows(sql_db):
             df = pd.read_sql("select * from %s" % table, con)
             df.drop_duplicates(inplace=True)
             df.to_sql(name=table, if_exists='replace', con=con)
-        except (OperationalError, DatabaseError):
+        except (sql.OperationalError, DatabaseError):
             pass
 
 # ------------User input for start/end --------------                
@@ -155,6 +159,7 @@ def get_ymd_from_input():
     except:
         raise 
     try:
+        today = pd.to_datetime('today').strftime("%m-%d-%Y")
         mdy = input("End date in mm-dd-yyyy format: ")
         (m,d,y) = mdy.split('-')
         year_end = int(y)
@@ -210,8 +215,7 @@ def parse_gdls(gdl):
             # Yields atbatDF, pitchDF, runnerDF, poDF, actionDF
             parser.parse_hip() # Yields hipDF
         except Exception as exc: 
-            raise
-            pass
+            raise 
             #bad_gdls.append(': '.join([gdl, exc.args[0]])) 
         
         return parser.get_dataframes() # Returns a dictionary of df names : df
