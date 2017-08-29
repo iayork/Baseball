@@ -150,6 +150,13 @@ class Parse_game():
     def __init__(self, gdl):
         self.gameday_url = gdl
         self.gdl = gdl.split('/')[-2:-1][0].strip('/')
+        print(self.gdl )
+        
+    def __enter__(self):
+        return self 
+
+    def __exit__(self, exc_type, exc_value, traceback):
+        return True
 
 
     # ------------------- Parsing functions -------------------------
@@ -248,7 +255,12 @@ class Parse_game():
                 
             self.parse_player_id_to_name(self.playerDF)
         except OSError: # No file found
-            pass
+            #pass
+            # If file is empty, no id_to_nameD is made and subsequently fails 
+            # because of AttributeError
+            # Making an empty dict should allow KeyError to be caught
+            # TODO fix this - if no file found shouldn't it be skipped?
+            self.id_to_nameD = {}
         
     def parse_player_id_to_name(self, df): 
         # TODO - Fix name lookups
