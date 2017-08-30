@@ -150,7 +150,7 @@ class Parse_game():
     def __init__(self, gdl):
         self.gameday_url = gdl
         self.gdl = gdl.split('/')[-2:-1][0].strip('/')
-        print(self.gdl )
+        print('\t\t%s' % self.gdl )
         
     def __enter__(self):
         return self 
@@ -418,6 +418,5 @@ class Parse_game():
                 'po':       self.poDF, 
                 'action':   self.actionDF, 
                 'hip':      self.hipDF}
-                
 
     # --------------End of Parse_game class ----------------

@@ -225,15 +225,20 @@ def download_parse_pooled(gameday_links, sql_db, engine, STEP = 4):
     #   'action':   self.actionDF, 
     #   'hip':      self.hipDF} 
     
-    with Pool(STEP) as pool:
-        results = pool.map(parse_gdls, gameday_links) 
-    # Incorporate write_info_to_sql into parse_gdls workflow?
-    for i in range(len(results)): 
-        write_info_to_sql(result[i], sql_db, engine)
-        if i%10==0:
-            print ('Parsed and saved %i of %i games' % (i, len(gameday_links)))
+    for i in range(0, len(gameday_links), 50): 
+        gameday_links_slice = gameday_links[i:i+50]
+        with Pool(STEP) as pool:
+            results = pool.map(parse_gdls, gameday_links_slice) 
+        print('Saving games ... ', end='')
+        for result in results: 
+            write_info_to_sql(result, sql_db, engine)
+        if i+50 > len(gameday_links):
+            c = len(gameday_link)
+        else:
+            c = i+50
+        print ('Parsed and saved %i of %i games' % (c, len(gameday_links)))
         
-    print ('Parsed and saved %i games' % ((i+STEP), len(gameday_links)))
+    print ('Finished parsing and saving %i games' % (len(gameday_links)))
     
 
 # ======================= Main script ============================================
