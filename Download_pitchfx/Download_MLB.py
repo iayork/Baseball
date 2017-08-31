@@ -232,6 +232,7 @@ def download_parse_pooled(gameday_links, sql_db, engine, STEP = 4):
         print('Saving games ... ', end='')
         for result in results: 
             write_info_to_sql(result, sql_db, engine)
+            del(result)
         if i+50 > len(gameday_links):
             c = len(gameday_link)
         else:
