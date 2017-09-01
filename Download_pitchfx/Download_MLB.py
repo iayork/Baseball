@@ -63,6 +63,7 @@ from pandas.io.sql import DatabaseError
 from multiprocessing import Pool
 
 from Parse_game import Parse_game
+from Remove_duplicates import *
 
 dbFolder = "/Users/iayork/Documents/Baseball/"
 
@@ -104,18 +105,6 @@ def check_all_games_written(gameday_links, sql_db, engine):
     
     except:
         raise
-
-
-def remove_duplicate_rows(sql_db, engine):
-    con = engine.connect()
-    for table in ('action', 'coach', 'hip', 'pitch', 'po', 'umpire', 
-                  'atbat', 'game', 'boxscore', 'player', 'runner'):
-        try:
-            df = pd.read_sql("select * from %s" % table, con)
-            df.drop_duplicates(inplace=True)
-            df.to_sql(name=table, if_exists='replace', con=con)
-        except (sql.OperationalError, DatabaseError):
-            pass
 
 # ------------User input for start/end --------------                
 def get_ymd_from_input():
@@ -234,7 +223,7 @@ def download_parse_pooled(gameday_links, sql_db, engine, STEP = 4):
             write_info_to_sql(result, sql_db, engine)
             del(result)
         if i+50 > len(gameday_links):
-            c = len(gameday_link)
+            c = len(gameday_links)
         else:
             c = i+50
         print ('Parsed and saved %i of %i games' % (c, len(gameday_links)))
@@ -290,7 +279,7 @@ def main():
             
         # ------ Remove duplicate rows via pandas ------------
         
-        remove_duplicate_rows(sql_db, engine)
+    # remove_duplicate_rows(os.path.join(dbFolder, 'PitchFX', sql_db))
     
     engine.dispose()
         
