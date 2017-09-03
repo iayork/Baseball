@@ -32,11 +32,11 @@ def write_info_to_sql(dict_of_dataframes, sql_db, engine):
                 check_columns(inspector, df, df_name, sql_db)
             df.to_sql(df_name, if_exists='append', con=con, index=False)
     except AttributeError:  # no df in dict 
-        print('"%s" df name' % df_name)
-        raise
+        print('\t\tNo dataframe to write.')
+        #raise
         pass
     except exc.OperationalError: 
-        print('Empty database "%s"' % df_name) 
+        print('\t\tEmpty database "%s"' % df_name) 
         pass
             
             # TODO: Depending on exception, add the game to list of bad games
@@ -174,7 +174,7 @@ def download_parse_unpooled(gameday_links):
         print(len(gameday_links)-1-i, end=' ... ')
     print ('Done parsing and saving games')
     
-def download_parse_pooled(gameday_links, sql_db, engine, STEP = 4):
+def download_parse_pooled(gameday_links, sql_db, engine, STEP = 8):
     # results are a list of dictionary of dataframes 
     #   {'game':    self.gameDF, 
     #   'boxscore': self.boxscoreDF, 
@@ -188,19 +188,20 @@ def download_parse_pooled(gameday_links, sql_db, engine, STEP = 4):
     #   'action':   self.actionDF, 
     #   'hip':      self.hipDF} 
     
-    for i in range(0, len(gameday_links), 50): 
-        gameday_links_slice = gameday_links[i:i+50]
-        with Pool(STEP) as pool:
+    with Pool(STEP) as pool:
+        for i in range(0, len(gameday_links), 50): 
+            gameday_links_slice = gameday_links[i:i+50]
             results = pool.map(parse_gdls, gameday_links_slice) 
-        print('Saving games ... ', end='')
-        for result in results: 
-            write_info_to_sql(result, sql_db, engine)
-            del(result)
-        if i+50 > len(gameday_links):
-            c = len(gameday_links)
-        else:
-            c = i+50
-        print ('Parsed and saved %i of %i games' % (c, len(gameday_links)))
+            print('Saving games ... ', end='')
+            for result in results: 
+                write_info_to_sql(result, sql_db, engine)
+                del(result)
+            if i+50 > len(gameday_links):
+                c = len(gameday_links)
+            else:
+                c = i+50
+            print ('Parsed and saved %i of %i games' % (c, len(gameday_links)))
+        
         
     print ('Finished parsing and saving %i games' % (len(gameday_links)))
     
