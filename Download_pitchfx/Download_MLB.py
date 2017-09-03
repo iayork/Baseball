@@ -1,49 +1,3 @@
-"""
-Download pitchF/X files from MLB.com, save to SQLite
-                
-# ------------------- SQL functions -------------------------           
-
-def write_info_to_sql(dict_of_dataframes):  
-       
-def remove_duplicate_rows()
-
-def check_all_games_written(gameday_links):
-        
-# ------------User input for start/end --------------                
-def get_ymd_from_input():
-    Ask for input on year, day/month to start with
-    
-
-def get_month_urls(year_url, month_start, month_end): 
-    
-def get_day_urls(year_url, month_url, month_start, month_end, day_start, day_end):
-    # TODO - Check if I should have put day_end instead of day_start in the month_end check
-    
-# -------------- Other functions-------------------------
-    
-def parse_gdls(gdl):  
-    Download and parse game information
-    
-
-def collect_gameday_urls(day_url):  
-    
-
-# ======================= Main script ============================================
-def main():   
-    
-main()
-    Set the base URL for the year
-    Get URLs for all months in a year
-    loop through months, get URLs for each day
-        Multiprocess - Collect gameday_links from days
-        Multiprocess - download & parse gamedays in groups of 50
-            Multiprocess - write to SQL
-        Check if all games are written to SQLite
-    Remove duplicate rows via pandas
-    Save to SQLite
-    
-"""
-
 import lxml
 import requests
 from lxml import etree
@@ -59,6 +13,7 @@ from sqlalchemy import create_engine, inspect, select
 import sqlite3 as sql
 import pandas.io.sql as pdsql 
 from pandas.io.sql import DatabaseError
+from sqlalchemy import exc
 
 from multiprocessing import Pool
 
@@ -71,12 +26,22 @@ dbFolder = "/Users/iayork/Documents/Baseball/"
 def write_info_to_sql(dict_of_dataframes, sql_db, engine):  
     con = engine.connect()
     inspector = inspect(engine)
-    for df_name, df in dict_of_dataframes.items(): 
-        if df_name in inspector.get_table_names():
-            check_columns(inspector, df, df_name, sql_db)
-        df.to_sql(df_name, if_exists='append', con=con, index=False)
-        # TODO: Depending on exception, just add the game to list of bad games
-        # and continue.  There are legit reasons for empty games
+    try:
+        for df_name, df in dict_of_dataframes.items(): 
+            if df_name in inspector.get_table_names():
+                check_columns(inspector, df, df_name, sql_db)
+            df.to_sql(df_name, if_exists='append', con=con, index=False)
+    except AttributeError:  # no df in dict 
+        print('"%s" df name' % df_name)
+        raise
+        pass
+    except exc.OperationalError: 
+        print('Empty database "%s"' % df_name) 
+        pass
+            
+            # TODO: Depending on exception, add the game to list of bad games
+            # and continue.  There are legit reasons for empty games
+            
     con.close() 
         
 def check_columns(inspector, df, df_name, sql_db): 
@@ -151,7 +116,7 @@ def get_day_urls(year_url, month_url, year, start_date, end_date):
     day_links = [a.attrs['href'] for a in month.findAll('a') if 'day' in a.text] 
     
     # Only keep dates that are between the start and end date
-    day_links = [x for x in day_links if start_date <= convert_ymd_to_datetime(year, m, x.split('_')[-1].strip('/')) <= end_date]
+    day_links = [x for x in day_links if date_in_range(year, m, x, start_date, end_date) ]
     day_urls = ['%s%s%s' % (year_url, month_url, day_link) for day_link in day_links]
     
     print ('Month %s: Collected %i day URLs; now collecting gameday_link URLs' % (m, len(day_urls)))
@@ -159,7 +124,16 @@ def get_day_urls(year_url, month_url, year, start_date, end_date):
     return day_urls 
     
 def convert_ymd_to_datetime(y,m,d):
-    return datetime.strptime('%s-%s-%s' % (y, m, d), '%Y-%m-%d')
+    try:
+        return datetime.strptime('%s-%s-%s' % (y, m, d), '%Y-%m-%d')
+    except:
+        print('Gameday url shows non-existent date %s-%s-%s; skip' % (m, d, y))
+        return None
+        
+def date_in_range(year, m, x, start_date, end_date):
+    date = convert_ymd_to_datetime(year, m, x.split('_')[-1].strip('/'))
+    if date is not None:
+        return (start_date <= date <= end_date)
     
 # -------------- Other functions-------------------------
     
@@ -179,7 +153,7 @@ def parse_gdls(gdl):
             return parser.get_dataframes() # Returns a dictionary of df names : df
      
         else:
-            print('Returning empty')
+            print('\t\t(No data)')
             return {} # Empty dict 
             #pass
             #bad_gdls.append(': '.join([gdl, 'Failed to parse Game properly'])) 

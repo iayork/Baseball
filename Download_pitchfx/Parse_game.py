@@ -150,7 +150,7 @@ class Parse_game():
     def __init__(self, gdl):
         self.gameday_url = gdl
         self.gdl = gdl.split('/')[-2:-1][0].strip('/')
-        print('\t\t%s' % self.gdl )
+        print('\t%s' % self.gdl )
         
     def __enter__(self):
         return self 
@@ -406,7 +406,7 @@ class Parse_game():
         except AttributeError:
             return False
         
-    def get_dataframes(self): 
+    def get_dataframes(self):  
         return {'game':     self.gameDF, 
                 'boxscore': self.boxscoreDF, 
                 'player':   self.playerDF, 
