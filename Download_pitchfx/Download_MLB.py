@@ -31,12 +31,12 @@ def write_info_to_sql(dict_of_dataframes, sql_db, engine):
             if df_name in inspector.get_table_names():
                 check_columns(inspector, df, df_name, sql_db)
             df.to_sql(df_name, if_exists='append', con=con, index=False)
-    except AttributeError:  # no df in dict 
-        print('\t\tNo dataframe to write.')
+    except AttributeError as exc:  # no df in dict 
+        print('\t\t %s' % exc.args[0]) 
         #raise
         pass
-    except exc.OperationalError: 
-        print('\t\tEmpty database "%s"' % df_name) 
+    except exc.OperationalError as exc: 
+        print('\t\t %s' % exc.args[0]) 
         pass
             
             # TODO: Depending on exception, add the game to list of bad games
@@ -56,7 +56,7 @@ def check_columns(inspector, df, df_name, sql_db):
         con_sql.close()
     
 
-def check_all_games_written(gameday_links, sql_db, engine):
+def check_all_games_written(gameday_links, engine):
     # TODO: Save reason for failed games along with the failures
     try:
         sql_gdls = [x[0] for x in pd.read_sql('select gameday_link from game', engine).values]
@@ -70,6 +70,27 @@ def check_all_games_written(gameday_links, sql_db, engine):
     
     except:
         raise
+        
+def convert_cols_to_numeric(engine):
+    print('Converting atbat columns to numeric')
+    con = engine.connect()
+    atbat = pd.read_sql_table('atbat', con)
+    for col in ('Inning', 'away_team_runs', 'home_team_runs', 'event_num', 'num','o', 's', 'b'):
+        atbat[col] = pd.to_numeric(atbat[col])
+    atbat.to_sql('atbat', if_exists='replace', con=con, index=False)
+    
+    print('Converting pitch columns to numeric')
+    pitch = pd.read_sql_table('pitch', con)
+    for col in ('event_num', 'id', 'num', 
+                'sz_bot', 'sz_top','x', 'y', 
+                'pz', 'x0','ax', 'vy0', 'ay', 'z0','az','y0', 'px','vx0', 'vz0',
+                'pfx_x', 'pfx_z', 'break_angle', 'break_length', 'break_y', 
+                'spin_rate',  'spin_dir',
+                'end_speed', 'start_speed'):
+        pitch[col] = pd.to_numeric(pitch[col])
+    pitch.to_sql('pitch', if_exists='replace', con=con, index=False)
+    
+    con.close()
 
 # ------------User input for start/end --------------                
 def get_ymd_from_input():
@@ -247,7 +268,9 @@ def main():
         download_parse_pooled(gameday_links, sql_db, engine)
         
     # Check if all games are written to SQLite
-    check_all_games_written(gameday_links, sql_db,engine)
+    check_all_games_written(gameday_links,engine)
+    # Convert to numeric
+    convert_cols_to_numeric(engine)
 
     if len(bad_gdls) > 0:
         print ('Bad GDLs: %s' % ('\n'.join(['%s (%s)' % (x[0], x[1]) for x in bad_gdls.items()] )))

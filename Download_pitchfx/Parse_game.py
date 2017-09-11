@@ -152,6 +152,7 @@ class Parse_game():
         self.gdl = gdl.split('/')[-2:-1][0].strip('/')
         print('\t%s' % self.gdl )
         
+    # TODO XXX __enter__ and __exit__ should be unnecessary now    
     def __enter__(self):
         return self 
 
@@ -188,8 +189,11 @@ class Parse_game():
         
         # Convert dict to df self.gameDF
         try:
+            # XXX TODO Is there ever a gameDF pre-made? 
+            # Isn't gameDF new each time?
             self.gameDF = self.gameDF.append(pd.DataFrame(gameD, index=(0,)))
-        except AttributeError: 
+        except AttributeError as exc: 
+            #print('\t\t %s for "game", making blank dataframe' % exc.args[0])
             # If no gameDF has been made, make one from gameD
             self.gameDF = pd.DataFrame(gameD, index=(0,))
         
