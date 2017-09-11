@@ -243,32 +243,44 @@ def get_obp_pfx(df):
     on_base = len(df[df['event'].isin(ob_events)].groupby(['gameday_link','num']).first())
     obp_pa = Baseball.get_pa_for_obp(df)
     return on_base/obp_pa
+     
+     
+def get_slg_pfx(df):
+    tb = Baseball.get_tb(df)
+    ab = Baseball.get_atbats_count_pfx(df)
+    return(tb/ab) 
 
 def get_slg_per_atbat_pfx(df): 
     """Total bases per ATBAT """ 
-    ab = Baseball.get_atbats_df_pfx(df)
-    events = list(ab.groupby(['gameday_link','num']).first()['event'].values)
-    b1 = events.count('Single')
-    b2 = events.count('Double') * 2
-    b3 = events.count('Triple') * 3
-    b4 = events.count('Home Run') * 4
-    return (b1 + b2 + b3 + b4)/len(events)
+    ab = len(Baseball.get_atbats_df_pfx(df))
+    tb = Baseball.get_tb(df)
+    return tb/len(events)
     
-def hits_tb_per_pitch(df):
+def get_hits(df):
+
     hit_des = ['In play, no out','In play, run(s)']
     hit_event = ['Single','Double','Triple','Home Run']
     hits = df[(df['event'].isin(hit_event)) & 
               (df['des'].isin(hit_des))]
+    return hits
+    
+def get_tb(df):
+    hits = get_hits(df)
 
     b1 = len(hits[hits['event']=='Single'])
     b2 = len(hits[hits['event']=='Double']) * 2
     b3 = len(hits[hits['event']=='Triple']) * 3
     b4 = len(hits[hits['event']=='Home Run']) * 4
     tb = (b1 + b2 + b3 + b4)
+    return tb
+    
+def hits_tb_per_pitch(df):
+    tb = Baseball.get_tb(df)
+    hits = get_hits(df)
     if len(df) == 0:
         tb_per_pitch = 0
     else:
-        tb_per_pitch = (b1 + b2 + b3 + b4)/len(df)
+        tb_per_pitch = tb/len(df)
     return {'Pitches':len(df),
             'Hits':len(hits),
             'TB':tb,

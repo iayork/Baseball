@@ -208,6 +208,7 @@ def get_b100(df, ptype=None):
     else:
         pt = df[df['pitch_type']==ptype] 
     b = pt[pt['des'].isin(Baseball.balls)] 
+    
     b100 = len(b)/len(pt)*100
     return b100
 
