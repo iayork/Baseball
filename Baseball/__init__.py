@@ -5,4 +5,4 @@ from .pitch import *
 from .batting import * 
 from .strikezone import *  
 
-__version__ = "0.5"
+__version__ = "0.7"

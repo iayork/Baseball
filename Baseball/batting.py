@@ -202,6 +202,65 @@ def get_batter_location_success(df):
                 box_infoD[(ctr_x, ctr_y)]['hits_per_pitch'] = hits_in_box/len(box)
                 
     return (box_infoD)
+    
+#------In/out of strike zone-------------------------------
+
+def zone_as_polygon(year):
+
+    import matplotlib.patches as patches 
+    zone_dict = Baseball.get_50pct_zone(2016) 
+    xy_r = np.array([np.array(xy) for xy in zip(np.array(zone_dict['xRs'][:-1]), 
+                     np.array(zone_dict['yRs'][:-1]))])
+    zone_polygon_r = patches.Polygon(xy_r,closed=True, 
+                                     facecolor='grey', alpha=0.1)
+    zone_path_r = zone_polygon_r.get_path()
+    
+    xy_l = np.array([np.array(xy) for xy in zip(np.array(zone_dict['xLs'][:-1]), 
+                     np.array(zone_dict['yLs'][:-1]))])
+    zone_polygon_l = patches.Polygon(xy_l,closed=True, 
+                                     facecolor='grey', alpha=0.1)
+    zone_path_l = zone_polygon_l.get_path()
+    return {'R':zone_path_r, 'L':zone_path_l}
+    
+    
+def get_o_zone_pitches(df, year, stand):
+    # -.25 radius OUTSIDE the strike zone 
+    zone_path = zone_as_polygon(year)[stand]
+    df2 = df.copy()
+    df2.loc[:,'Inside_zone_for_o-zone'] = zone_path.contains_points(df2[['px','pz']].values, 
+                                                         radius = -0.25)
+    return(df2[(df2['Inside_zone_for_o-zone']==False)])
+    
+def get_o_zone_swings(df, year, stand):
+    o_zone_pitches = get_o_zone_pitches(df, year,stand)
+    o_zone_swings = o_zone_pitches[~(o_zone_pitches['des'].isin(Baseball.balls))]
+    return o_zone_swings
+    
+def get_o_zone_swing_pct(df, stand, year=2016):
+    o_zone_pitches = get_o_zone_pitches(df,year,stand)
+    o_zone_swings = get_o_zone_swings(df, year, stand)
+    o_swing_pct = len(o_zone_swings)/len(o_zone_pitches)*100
+    return o_swing_pct
+
+    
+def get_in_zone_pitches(df, year, stand):
+    # .25 radius INSIDE the strike zone 
+    zone_path = zone_as_polygon(year)[stand]
+    df2 = df.copy()
+    df2.loc[:,'Inside_zone_for_in-zone'] = zone_path.contains_points(df2[['px','pz']].values, 
+                                                         radius = 0.25)
+    return(df2[(df2['Inside_zone_for_in-zone']==True)])
+    
+def get_in_zone_swings(df, year, stand):
+    in_zone_pitches = get_in_zone_pitches(df, year,stand)
+    in_zone_swings = in_zone_pitches[~(in_zone_pitches['des'].isin(Baseball.balls))]
+    return in_zone_swings
+    
+def get_in_zone_swing_pct(df, stand, year=2016):
+    in_zone_pitches = get_in_zone_pitches(df,year,stand)
+    in_zone_swings = get_in_zone_swings(df, year, stand)
+    in_swing_pct = len(in_zone_swings)/len(in_zone_pitches)*100
+    return in_swing_pct
              
 
     
@@ -219,6 +278,7 @@ def get_atbats_count_pfx(df):
     return len(ab.groupby(['gameday_link','num']).first())
 
 def get_pa_count_pfx(df):
+    # Number of plate appearances
     # PA = AB + BB + HBP + SH + SF + Times Reached on Defensive Interference
     pa_extras = ['Walk', 'Sac Fly', 'Hit By Pitch', 'Intent Walk', 'Sac Bunt', 
                 'Sac Fly', 'Catcher Interference', 'Fan interference',
@@ -228,6 +288,8 @@ def get_pa_count_pfx(df):
     return pa
 
 def get_pa_for_obp(df):
+    # Deprecate? 
+    # get_pa_count_pfx counts more events
     # At Bats + Walks + Hit by Pitch + Sacrifice Flies
     obp_pa_extras = ['Walk', 'Sac Fly', 'Hit By Pitch', 'Intent Walk',  
                 'Sac Fly', 'Catcher Interference', 'Fan interference',
