@@ -1,52 +1,32 @@
 """
 Functions for calculating and analyzing the strike zone
 
-
-def get_50pct_zone(year=2015):
-    Outside the points the chance of a ball vs. a called strike is > 50%
-    50% strike zone (zone outside of which there is >50% chance a pitch 
-    will be called a ball vs. a strike)
-    
-
-def official_zone_25_boxes():
-	Split the "official" strike zone into 16 boxes
-    Return (topmost, bottommost,leftmost,rightmost, x_step, y_step)
-    Adding one step to each side of the zone
-
-
-class Strikezone(object)
-
-class Zone(Strikezone):
-    def __init__(self, df, x_num, y_num): 
-    def getxy(self, x_num, y_num):
-    def get_pitches(self, df): 
-    def get_hits_in_zone(self, df):
-    def get_center_point(self):
-    def get_color(self, clrs): 
-    def get_annot(self): 
-    
-    
-
-
 """
 
 def official_zone_25_boxes():
-	sz_left = -1.66/2
-	sz_right = 1.66/2
-	x_step = (sz_right - sz_left)/3.0
-	leftmost = (sz_left - x_step)
-	rightmost = (sz_right + x_step)
-	
-	sz_bottom = 1.58
-	sz_top = 3.4
-	y_step = (sz_top - sz_bottom)/3.0
-	bottommost = (sz_bottom - y_step)
-	topmost = (sz_top + y_step)
-	return (topmost, bottommost,leftmost,rightmost, x_step, y_step)
-	
-	
+    """
+    Splits the official zone into 25 sub-zones
+    
+    """
+    sz_left = -1.66/2
+    sz_right = 1.66/2
+    x_step = (sz_right - sz_left)/3.0
+    leftmost = (sz_left - x_step)
+    rightmost = (sz_right + x_step)
+    
+    sz_bottom = 1.58
+    sz_top = 3.4
+    y_step = (sz_top - sz_bottom)/3.0
+    bottommost = (sz_bottom - y_step)
+    topmost = (sz_top + y_step)
+    return (topmost, bottommost,leftmost,rightmost, x_step, y_step)
+    
+    
 class Strikezone(object):
     """
+    
+    Parent for class Zone
+    
     class Strikezone(object):
         def __init__(self):
         def official_zone(self):
@@ -59,8 +39,7 @@ class Strikezone(object):
     def __init__(self):
         pass
         
-
-    
+        
     def get_x_list(self):
         return [self.leftmost + (i * self.x_step) for i in range(5)]
     
@@ -138,7 +117,7 @@ class Zone(Strikezone):
 
 
 
-def get_50pct_zone(year=2015):
+def get_50pct_zone(year=2016):
     """
      Outside the points the chance of a ball vs. a called strike is > 50%
     
@@ -236,28 +215,28 @@ def get_50pct_zone(year=2015):
                     (.97, 2.625), (.97, 2.5), (.97, 2.375), (.97, 2.25), (.97, 2.125), (.97, 2.0), (0.9, 1.75), 
                     (0.6, 1.5), (-0.375, 1.5)]
 
-    #k_zoneL_2016 = [(-0.875, 1.550), (-1.000, 1.650), (-1.100, 1.900), (-1.050, 2.800), (-1.000, 3.000), (-0.860, 3.300), 
-    #                (-0.115, 3.475), (0.550, 3.350), (0.775, 3.050), (0.800, 2.875), (0.800, 2.125), (0.800, 2.000), 
-    #                (0.650, 1.800), (0.550, 1.650), (0.250, 1.550), (-0.250, 1.500), (-0.875, 1.550)] 
-                    
     k_zoneL_2016 = [(-0.875, 1.600), (-0.925, 1.625), (-1.050, 1.900), (-1.050, 2.800), 
                     (-1.000, 3.000), (-0.860, 3.300), (-0.115, 3.475), (0.550, 3.350), 
                     (0.775, 3.050), (0.800, 2.875), (0.800, 2.125), (0.800, 2.000),  
                     (0.650, 1.800), (0.550, 1.650), (0.250, 1.550), (-0.250, 1.500), 
                     (-0.875, 1.600)]            
 
-    #k_zoneR_2016 = [(-0.375, 1.550), (-0.875, 1.625), (-0.975, 1.875), (-1.000, 2.175), (-0.975, 2.875), (-0.870, 3.125), 
-    #                (-0.750, 3.325), (-0.375, 3.450), (0.500, 3.375), (0.825, 3.200), (0.950, 2.875), (0.950, 2.750), 
-    #                (0.950, 2.625), (0.950, 2.500), (0.950, 2.375), (0.950, 2.250), (0.950, 2.125), (0.950, 2.000), 
-    #                (0.850, 1.750), (0.600, 1.550), (-0.375, 1.550)]
-                    
     k_zoneR_2016 = [(-0.375, 1.550), (-0.850, 1.650), (-0.975, 1.875), (-1.000, 2.175), 
                     (-0.975, 2.875), (-0.870, 3.125), (-0.750, 3.325), (-0.375, 3.450), 
                     (0.500, 3.375), (0.825, 3.200), (0.950, 2.875), (0.950, 2.750), 
                     (0.950, 2.625), (0.950, 2.500), (0.950, 2.375), (0.950, 2.250), 
                     (0.950, 2.125), (0.950, 2.000), (0.850, 1.750), (0.600, 1.550), 
-                    (-0.375, 1.550)]
-    
+                    (-0.375, 1.550)] 
+                    
+    k_zoneL_2017 = [(-0.85, 1.60), (-1.05, 2.000), (-.99, 2.700), (-0.850, 3.200), 
+                    (-0.50, 3.400), (-0.115, 3.45), (0.550, 3.375), (0.850, 3.050),
+                    (0.860, 2.125), (0.800, 2.000), (0.650, 1.800), (0.550, 1.650), 
+                    (0.250, 1.550), (-0.250, 1.5), (-0.85, 1.60)]            
+
+    k_zoneR_2017 = [(-0.375, 1.550), (-0.830, 1.70), (-0.95, 1.875), (-.95, 2.175), 
+                    (-0.880, 3.), (-0.750, 3.25), (-0.375, 3.450), (0.500, 3.4), 
+                    (0.825, 3.200), (0.9750, 2.875), (0.9750, 2.625), (0.9750, 2.125), 
+                    (0.870, 1.7), (0.600, 1.55), (-0.375, 1.550)] 
     
 
     zoneD = {2008:(k_zoneL_2008, k_zoneR_2008),
@@ -268,7 +247,8 @@ def get_50pct_zone(year=2015):
              2013:(k_zoneL_2013, k_zoneR_2013),
              2014:(k_zoneL_2014, k_zoneR_2014), 
              2015:(k_zoneL_2015, k_zoneR_2015), 
-             2016:(k_zoneL_2016, k_zoneR_2016)}
+             2016:(k_zoneL_2016, k_zoneR_2016), 
+             2017:(k_zoneL_2017, k_zoneR_2017)}
 
     
     (k_zoneL, k_zoneR) = zoneD[year]

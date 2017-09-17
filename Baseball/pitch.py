@@ -96,7 +96,10 @@ def speed_at_feet(df, feet=55):
 #---------Pitch usage----------
     
 def pitch_usage_games(df):
-    # Turn a PITCHf/x dataframe into per-game pitch usage percents 
+    """
+    Turn a PITCHf/x dataframe into per-game pitch usage percents 
+    
+    """
     
     usage = pd.DataFrame(df.groupby(['gameday_link','pitch_type']).count()['count'])
     usage = usage.reset_index()
@@ -113,7 +116,10 @@ def pitch_usage_games(df):
     return usage_pct
     
 def pitch_usage_year(df):
-    # Turn a PITCHf/x dataframe into per-year pitch usage percents 
+    """
+    Turn a PITCHf/x dataframe into per-year pitch usage percents 
+    """
+    
     usage_yr = df[['pitch_type','count']].groupby('pitch_type').count() 
     usage_yr['Percent'] = usage_yr.apply(lambda x:x/usage_yr['count'].sum(axis=0)*100)
     usage_yr = usage_yr.drop(['count'],axis=1)
@@ -122,7 +128,11 @@ def pitch_usage_year(df):
 #------Situational pitch usage--------
 
 def get_usage_all_counts(df, ptypes=None):
-    # Show pitch usage in each count
+    """
+    Starting with a PITCHf/x dataframe, 
+    show pitch usage in each count
+    """
+    
     if ptypes is None:
         ptypes = df['pitch_type'].unique()
     countD = {}
@@ -137,7 +147,12 @@ def get_usage_all_counts(df, ptypes=None):
             countD[count]['%s%%' % ptype] = '%.1f' % ((len(c[c['pitch_type']==ptype]))/len(c) * 100)
     return pd.DataFrame(countD)
 
-def get_countD(df, ptypes):
+def get_usage_ahead_behind(df, ptypes):
+    """
+    Starting with a PITCHf/x dataframe and a list of pitch types,
+    get usage of each pitch type when ahead and behind in the count
+    
+    """
     countD = {}
     for count_type in ['Ahead', 'Behind']:
         c = df[df['count'].isin(Baseball.counts[count_type])]
@@ -148,8 +163,13 @@ def get_countD(df, ptypes):
 
     return pd.DataFrame(countD)
 
-def get_usage(df):
-    # takes the full dataframe
+def get_usage_lhb_rhb(df):
+    """
+    Starting with a PITCHf/x dataframe, collect all the pitch types in the df
+    Calculate pitch usage vs right- and left-handed batters, and all batters
+    
+    """
+    
     usage_conditions = df[['count','pitch_type']].groupby('pitch_type').count()/len(df) * 100
     usage_conditions.rename(columns={'count':'All'},inplace=True)
     
@@ -162,12 +182,18 @@ def get_usage(df):
     return usage_conditions
     
 def pitch_usage_situational(df, ptypes=None):
-    # Turn a PITCHf/x dataframe into pitch usage percents 
-    # including situations (vs RHB and LHB, ahead and behind)
+    """
+    Turn a PITCHf/x dataframe into pitch usage percents 
+    Overall, vs RHB and LHB, ahead and behind in the count
+    
+    Either for a specific pitch type (if ptype passed) 
+    or for all pitch types listed in the df (if no ptype passed)
+    """
     if ptypes is None:
         ptypes = df['pitch_type'].unique()
-    countDF = get_countD(df, ptypes)
-    usage_conditions = get_usage(df)
+    countDF = get_usage_ahead_behind(df, ptypes)  # usage by RHB vs LHB as well as All
+    usage_conditions = get_usage_lhb_rhb(df)      # usage when ahead/behind in count
+                                                  # Merge the two dataframes to get the set
     usage_conditions = usage_conditions.merge(countDF, 
                                               left_index=True, 
                                               right_index=True)
@@ -177,8 +203,10 @@ def pitch_usage_situational(df, ptypes=None):
 #------- Pitch values - Total bases/100 pitches, balls/100 pitches -------
 
 def get_b100(df, ptype=None):
-    # Balls per 100 pitches 
-    # If no pitch type is given, give results for the whole dataframe
+    """
+    Balls per 100 pitches from a PITCHf/x dataframe 
+    If no pitch type is given, give results for the whole dataframe
+    """
     
     if ptype is None:
         pt = df
@@ -190,6 +218,9 @@ def get_b100(df, ptype=None):
     return b100
 
 def get_b100_tb100_per_ptype(df, ptypes=None):
+    """
+    Combined total bases per 100 pitches and balls per 100 pitches
+    """
     if ptypes is None:
         ptypes = df['pitch_type'].unique()
     tb100sD = {}
