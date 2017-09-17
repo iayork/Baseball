@@ -1,31 +1,9 @@
-"""
-Functions for calculating and analyzing pitches
-
-def pitch_flight(df_row): 
-    Take a single row of a pitchfx dataframe (i.e. a Series)
-    Calculate the x, y, z positions for each timepoint t
-    Return a dictionary containing lists of each parameter
-    
-    
-def speed_at_feet(df, feet=55): 
-    PITCHf/x start_speed is at 50 feet from home plate
-    Calculate pitch speed at any distance from the plate 
-    Default = 55 feet (Brooks Baseball style)
-    Usage: For a PITCHf/x dataframe df
-    df['Speed55'] = df.apply(speed_at_feet, axis=1)
-    or
-    df['Speed15'] = speed_at_feet(df, feet=15) 
-    
-def pitch_usage(df):
-    # Turn a PITCHf/x dataframe into pitch usage percents 
-"""
-
 import pandas as pd 
 import numpy as np
 from math import sqrt
 import Baseball
 
-
+#---------Functions for calculating position of a pitch in flight----------
 def pitch_flight(df_row): 
     """
     Calculate the x, y, z positions for each timepoint t
@@ -115,8 +93,7 @@ def speed_at_feet(df, feet=55):
             
     return mph_feet
     
-def gdl_to_date(x):
-    return '%s-%s-%s' % (x.split('_')[2], x.split('_')[3], x.split('_')[1])
+#---------Pitch usage----------
     
 def pitch_usage_games(df):
     # Turn a PITCHf/x dataframe into per-game pitch usage percents 
@@ -125,7 +102,7 @@ def pitch_usage_games(df):
     usage = usage.reset_index()
     usage.rename(columns={'pitch_type':'Pitch type'}, inplace=True)
     
-    usage['Date'] = usage['gameday_link'].apply(gdl_to_date)
+    usage['Date'] = usage['gameday_link'].apply(Baseball.gdl_to_date)
     usage2 = usage.pivot(index='Date',columns='Pitch type',values='count').fillna(0)
     usage2['Total'] = usage2.sum(axis=1)
 
@@ -142,7 +119,7 @@ def pitch_usage_year(df):
     usage_yr = usage_yr.drop(['count'],axis=1)
     return usage_yr
     
-#------Functions for calculating situational pitch usage--------
+#------Situational pitch usage--------
 
 def get_usage_all_counts(df, ptypes=None):
     # Show pitch usage in each count

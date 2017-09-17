@@ -1,34 +1,11 @@
-"""Various utility functions for baseball: SQL connections, SQL database calls
+"""
+Various utility functions for baseball: 
 
-get_con(year, dbFolder="/Users/iayork/Documents/Baseball/PitchFX", db=False):
-    dbFolder default="/Users/iayork/Documents/Baseball/PitchFX"
-    
-get_pitchab(con, reg): 
-    Get everything from pitch and atbat, merge on gameday_link + num
-    usage: get_pitchab(con, reg=True)
-    set "reg=False" to get spring training, all-star, post-season games
-    
-get_pitchab_for_pitcher(pitcher_name, con, reg):  
-    Get everything from pitch and atbat for a specific pitcher, 
-    merge on gameday_link + num
-    usage: get_pitchab_for_pitcher(pitcher_name, con, reg=True)
-    set "reg=False" to get spring training, all-star, post-season games
-    
-get_bbref_pitch(url): 
-    returns a pandas dataframe containing bbref gameday info 
-    usage get_bbref(url)
-    
-bbref_date_to_gdl_date(bbref_date, year):
-    take date in format "Apr 8" or "Jul 7(1)" and convert to "04-08-15" format
-    usage: bbref_date_to_gdl_date(bbref_date, year)
-    year default = 2016
-    
-convert_bbref_ip(s):
-    convert series containing innings pitched in ".1", ".2" format 
-    to ".33", ".67" format 
-    
-pitch_abbrs():
-    A dict of standard abbreviations for pitch types 
+    Common dictionaries and definitions
+    SQL connections, SQL database calls
+    Convert between PITCHf/x, BBREF, and common formats
+    Connect to BBREF tables for batting or pitching
+
 """
 
 import pandas as pd
@@ -65,31 +42,33 @@ pitch_abbrs = {'FT':'Two-seam fastball',
                 'AB':'Automatic ball'}
                 
 """Pitch types grouped by class and their reverse """
-
 ptype_sets = {'Fastballs':['FT', 'FF','SI', 'FC','FA', 'FS','SI','FO'],
               'Breaking':['SL', 'CB', 'CU', 'KC','SC'],
               'Knuckleballs':['KN',], 
               'Offspeed':['CH','SF','EP']}
 
-rev_ptypes = {'CB': 'Breaking',
-              'CH': 'Offspeed',
-              'CU': 'Breaking',
-              'EP': 'Offspeed',
-              'FA': 'Fastballs',
-              'FC': 'Fastballs',
-              'FF': 'Fastballs',
-              'FO': 'Fastballs',
-              'FS': 'Fastballs',
-              'FT': 'Fastballs',
-              'KC': 'Breaking',
-              'KN': 'Knuckleballs',
-              'SC': 'Breaking',
-              'SF': 'Offspeed',
-              'SI': 'Fastballs',
-              'SL': 'Breaking'}
+ptype_sets_rev = {'CB': 'Breaking',
+                  'CH': 'Offspeed',
+                  'CU': 'Breaking',
+                  'EP': 'Offspeed',
+                  'FA': 'Fastballs',
+                  'FC': 'Fastballs',
+                  'FF': 'Fastballs',
+                  'FO': 'Fastballs',
+                  'FS': 'Fastballs',
+                  'FT': 'Fastballs',
+                  'KC': 'Breaking',
+                  'KN': 'Knuckleballs',
+                  'SC': 'Breaking',
+                  'SF': 'Offspeed',
+                  'SI': 'Fastballs',
+                  'SL': 'Breaking'}
         
  
-# ----------- Databases ----------------------    
+# ----------- Database access and connections ----------------------    
+
+### TODO - Make use of SQLAlchemy for read_sql_table
+
 def get_con(year, dbFolder="/Users/iayork/Documents/Baseball/PitchFX", db=False):
     """ dbFolder default="/Users/iayork/Documents/Baseball/PitchFX" """
     if not db:
@@ -236,7 +215,7 @@ def convert_bbref_ip(x):
 def get_bbref_pitch(url, year=2016):
     """ 
     returns a pandas dataframe containing bbref info (not all numeric?)
-    usage get_bbref(url)
+    usage get_bbref_pitch(url)
     """
     
     import Baseball
@@ -268,6 +247,10 @@ def get_bbref_pitch(url, year=2016):
 
     
 def get_bbref_bat(url, year=2016):
+    """ 
+    returns a pandas dataframe containing bbref info (not all numeric?)
+    usage get_bbref_bat(url)
+    """
     from bs4 import BeautifulSoup
     import requests 
     
