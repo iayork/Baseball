@@ -214,9 +214,8 @@ class Parse_game():
         self.playerDF   = pd.DataFrame({'gameday_link':self.gdl}, index=(0,))
         self.coachDF    = pd.DataFrame({'gameday_link':self.gdl}, index=(0,))
         self.umpireDF   = pd.DataFrame({'gameday_link':self.gdl}, index=(0,))
-        
-        self.atbatDF    = pd.DataFrame()
-        self.hipDF      = pd.DataFrame()
+        self.hipDF      = pd.DataFrame({'gameday_link':self.gdl}, index=(0,))
+        self.atbatDF    = pd.DataFrame() 
             
             
     def parse_boxscore(self):
