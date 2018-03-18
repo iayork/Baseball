@@ -221,6 +221,7 @@ class Parse_game():
     def parse_boxscore(self):
         """ The inning-by-inning boxscore
             PitchRx does not download this, but it might be useful 
+            Does not contain gameday_link; needs to be added in a column
         """
         try:
             tree = etree.parse('%s%s' % (self.gameday_url,'rawboxscore.xml'))

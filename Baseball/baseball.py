@@ -81,7 +81,18 @@ def pitch_pcts_per_game(df, ptypes):
     return usageDF
 
 def get_gb_from_pfx(df):
-    """Ground Ball Percentage (GB%) = Ground Balls / Balls in Play"""
+    """
+    Ground Ball Percentage (GB%) = Ground Balls / Balls in Play
+    TODO - Are errors, sac bunts/flies, fielders' choices included in the denominator? 
+    The definition suggests that they should be ("balls in play"), but excluding them
+    makes my numbers closer to FanGraph's in general
+    
+    inplay = df[(df['des'].str.contains('In play')) & 
+                 (df['event'] != 'Field Error') & 
+                 ~(df['event'].str.contains('Sac')) & 
+                 ~(df['event'].str.contains('Fielders Choice'))]
+                            
+    """
     inplay = df[df['des'].str.contains('In play')]
     gb = inplay[(inplay['atbat_des'].str.contains('ground ball')) | 
                 (inplay['atbat_des'].str.contains('grounds'))]

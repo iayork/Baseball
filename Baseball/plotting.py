@@ -331,7 +331,7 @@ def basic_layout_pitcher_2(year=2016):
     
     plt.tight_layout()
     
-    return (fig, ax1, ax2)   
+    return (fig, (ax1, ax2))  
 
   
     
@@ -369,7 +369,7 @@ def basic_layout_pitcher_4(year=2016):
     
     plt.tight_layout()
     
-    return (fig, ax1, ax2, ax3, ax4) 
+    return (fig, ((ax1,ax2),(ax3,ax4)))
     
     
 def basic_layout_pitcher_6(year=2016):
@@ -407,7 +407,7 @@ def basic_layout_pitcher_6(year=2016):
     
     plt.tight_layout()
     
-    return (fig,ax1,ax2,ax3,ax4,ax5,ax6)  
+    return (fig,((ax1,ax2),(ax3,ax4),(ax5,ax6)))  
     
     
     
@@ -442,7 +442,7 @@ def basic_layout_pitcher_8(year=2016):
     ax1.text(-2.3, 0.2, '@soshbaseball', fontsize=12, alpha=0.8)
 
     plt.tight_layout()
-    return (fig,ax1,ax2, ax3,ax4,ax5,ax6,ax7,ax8)
+    return (fig,((ax1,ax2),(ax3,ax4),(ax5,ax6),(ax7,ax8)))
 
     
     
@@ -481,7 +481,7 @@ def basic_layout_pitcher_10(year=2016):
     ax1.text(-2.3, 0.2, '@soshbaseball', fontsize=12, alpha=0.8)
 
     plt.tight_layout()
-    return (fig,ax1,ax2, ax3,ax4,ax5,ax6,ax7,ax8,ax9,ax10)
+    return (fig,((ax1,ax2),(ax3,ax4),(ax5,ax6),(ax7,ax8),(ax9,ax10)))
     
     
 def basic_layout_pitcher_12(year=2016): 
@@ -513,7 +513,7 @@ def basic_layout_pitcher_12(year=2016):
     ax1.text(-2.3, 0.2, '@soshbaseball', fontsize=12, alpha=0.8)
 
     plt.tight_layout()
-    return (fig,ax1,ax2, ax3,ax4,ax5,ax6,ax7,ax8,ax9,ax10,ax11,ax12)
+    return (fig,((ax1,ax2),(ax3,ax4),(ax5,ax6),(ax7,ax8),(ax9,ax10),(ax11,ax12)))
     
     
 def show_batter(ax, stand, xyl=[1.35, 2], xyr=[-1.35, 2], zoom=0.17,

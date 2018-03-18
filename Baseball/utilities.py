@@ -12,6 +12,7 @@ import pandas as pd
 import sqlite3 as sql
 import os.path
 import Baseball
+from sqlalchemy import create_engine
 
 
 # ----------- Definitions ----------------------
@@ -70,34 +71,53 @@ ptype_sets_rev = {'CB': 'Breaking',
 ### TODO - Make use of SQLAlchemy for read_sql_table
 
 def get_con(year, dbFolder="/Users/iayork/Documents/Baseball/PitchFX", db=False):
-    """ dbFolder default="/Users/iayork/Documents/Baseball/PitchFX" """
     if not db:
         db = 'pitchfx%s.db' % year
+    db_path = os.path.join(dbFolder, db
+    print(db_path)
     
-    print(os.path.join(dbFolder, db))
-    return  sql.connect(os.path.join(dbFolder, db))   
+    engine = create_engine('sqlite:///%s' % db_path)
+    connection = engine.connect()
     
-        
 def get_pitchab(con, reg=True):
     """ 
     Get everything from pitch and atbat, merge on gameday_link + num
     usage: get_pitchab(con, reg=True)
     set "reg=False" to get spring training, all-star, post-season games
-    """
-    atbat = pd.read_sql("select * from atbat ", con)
-    pitch = pd.read_sql("select * from pitch ", con)
+    """    
+    
+    #atbat = pd.read_sql("select * from atbat ", con)  # for sqlite3 connection
+    #pitch = pd.read_sql("select * from pitch ", con)  # for sqlite3 connection
+    atbatdf = pd.read_sql_table('atbat', connection)
+    pitchdf = pd.read_sql_table('pitch', connection)
     pitchab = pitch.merge(atbat, on=['gameday_link','num'], suffixes=('', '_duplicate_delete'))
 
     if reg:
-        game_sql = """select gameday_link from game where game_type="R" """
-        reg_gdls_df = pd.read_sql(game_sql, con) 
-        reg_gdls = ['gid_%s' % x for x in reg_gdls_df['gameday_link'].values]
+        gamedf = pd.read_sql_table('game', connection)
+        regdf = gamedf[gamedf['game_type']=='R']
+        reg_gdls = ['gid_%s' % x for x in regdf['gameday_link'].values]
         pitchab = pitchab[pitchab['gameday_link'].isin(reg_gdls)]
+        
+        #game_sql = """select gameday_link from game where game_type="R" """
+        #reg_gdls_df = pd.read_sql(game_sql, con) 
+        #reg_gdls = ['gid_%s' % x for x in reg_gdls_df['gameday_link'].values]
+        #pitchab = pitchab[pitchab['gameday_link'].isin(reg_gdls)]
         
     drop_cols = [x for x in pitchab.columns if '_duplicate_delete' in x]
     for param in ('break_angle', 'break_length','break_y'):
         pitchab[param] = pd.to_numeric(pitchab[param]) 
     return pitchab.drop(drop_cols, axis=1)
+    
+    
+
+"""
+def get_con(year, dbFolder="/Users/iayork/Documents/Baseball/PitchFX", db=False):
+    # dbFolder default="/Users/iayork/Documents/Baseball/PitchFX"
+    if not db:
+        db = 'pitchfx%s.db' % year
+    
+    print(os.path.join(dbFolder, db))
+    return  sql.connect(os.path.join(dbFolder, db)) """"
     
     
 def get_pitchab_for_pitcher(pitcher_name, con, reg=True): 

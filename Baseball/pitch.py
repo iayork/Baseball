@@ -4,7 +4,7 @@ from math import sqrt
 import Baseball
 
 #---------Functions for calculating position of a pitch in flight----------
-def pitch_flight(df_row): 
+def pitch_flight(df_row, year=2017): 
     """
     Calculate the x, y, z positions for each timepoint t
     Return a dictionary containing lists of each parameter
@@ -13,35 +13,32 @@ def pitch_flight(df_row):
     assert isinstance(df_row, pd.DataFrame), "Must pass one dataframe row"
     assert len(df_row)==1, "Must pass one dataframe row"
     
-    y0 = 50  
+     
     az_noair = -32.174 
     ax_noair = 0 
     
-    vy0 = df_row.iloc[0]['vy0']
-    vx0 = df_row.iloc[0]['vx0']  
-    vz0 = df_row.iloc[0]['vz0']  
-    ay = df_row.iloc[0]['ay'] 
-    az = df_row.iloc[0]['az']
-    ax = df_row.iloc[0]['ax']
-    z0 = df_row.iloc[0]['z0']
-    x0 = df_row.iloc[0]['x0']
+    (vy0, vx0, vz0, ay, az, ax, z0, x0) = df_row[['vy0','vx0','vz0','ay','az','ax','z0','x0']].values[0]
 
-    z_time = [] 
+    z_time = []
     y_time = []
-    x_time = [] 
-    t_time = [] 
+    x_time = []
+    t_time = []
     z_noair_time = []
     x_noair_time = []
 
-    
-    # Calculate t for y=55
+    # if year is earlier than 2017, start_speed is at 50 feet
+    # calculate t for y=55
     # Start with that time, and pass an adjustment to set it to 0
-     
+    if year < 2017:
+        y0 = 50 
+    else:
+        y0 = 55 
+    
     t55 = (-vy0 - sqrt(vy0*vy0 - 2*ay * (y0 - 55)))/ay   
     vy55 = -(sqrt(vy0*vy0 + 2*ay * (55 - y0))) 
     vyend = -(sqrt(vy0*vy0 + 2*ay * (1.417 - y0)))
     
-    mph = -(vy0 * 60 *60)/5280.0 
+    mph = -(vy0 * 60*60)/5280.0 
     mph55 = -(vy55 * 60 *60)/5280.0 
     mphend = -(vyend * 60 *60)/5280.0 
 

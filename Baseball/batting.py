@@ -30,11 +30,11 @@ def hits_per_pitch_subzone(df):
                          (df['pz']>=col) & 
                          (df['pz']<col+0.6)] 
                          
-            hitsD = Baseball.tb_per_pitch(subzone)
+            hitsD = Baseball.hits_tb_per_pitch(subzone)
             hits = hitsD['Hits']
             pitches = hitsD['Pitches']
             try:
-                hits_per_pitch = hits/pitch
+                hits_per_pitch = hits/pitches
             except ZeroDivisionError:
                 hits_per_pitch = 0 
             
@@ -64,7 +64,7 @@ def hits_per_subzone(df):
                          (df['px']<row+0.6) & 
                          (df['pz']>=col) & 
                          (df['pz']<col+0.6)] 
-            hitsD = Baseball.tb_per_pitch(subzone)
+            hitsD = Baseball.hits_tb_per_pitch(subzone)
             try:
                 hits_subzoneD[row].append( hitsD['Hits']) 
             except KeyError:
@@ -89,7 +89,7 @@ def tb_per_pitch_subzone(df):
                          (df['px']<row+0.6) & 
                          (df['pz']>=col) & 
                          (df['pz']<col+0.6)] 
-            tbD = Baseball.tb_per_pitch(subzone)
+            tbD = Baseball.hits_tb_per_pitch(subzone)
             try:
                 tb_subzoneD[row].append( tbD['TB_per_pitch']) 
             except KeyError:
