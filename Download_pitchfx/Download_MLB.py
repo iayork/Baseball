@@ -37,21 +37,24 @@ dbFolder = "/Users/iayork/Documents/Baseball/"
 def write_info_to_sql(dict_of_dataframes, sql_db, engine):  
     con = engine.connect()
     inspector = inspect(engine)
-    for df_name, df in dict_of_dataframes.items(): 
-        try:
-            if df_name in inspector.get_table_names():
-                check_columns(df, df_name, sql_db, inspector)
-            df.to_sql(df_name, if_exists='append', con=con, index=False)
-        except AttributeError as exc:  # no df in dict 
-            print('AttributeError: \t\t %s' % exc.args[0]) 
-            #raise
-            pass
-        except OperationalError as exc: #exc.OperationalError as exc: 
-            print('Operational error: \t\t %s' % exc.args[0]) 
-            pass
+    try:
+        for df_name, df in dict_of_dataframes.items(): 
+            try:
+                if df_name in inspector.get_table_names():
+                    check_columns(df, df_name, sql_db, inspector)
+                df.to_sql(df_name, if_exists='append', con=con, index=False)
+            except AttributeError as exc:  # no df in dict 
+                print('AttributeError: \t\t %s' % exc.args[0]) 
+                #raise
+                pass
+            except OperationalError as exc: #exc.OperationalError as exc: 
+                print('Operational error: \t\t %s' % exc.args[0]) 
+                pass
             
-                # TODO: Depending on exception, add the game to list of bad games
-                # and continue.  There may be legit reasons for empty games
+                    # TODO: Depending on exception, add the game to list of bad games
+                    # and continue.  There may be legit reasons for empty games
+    except AttributeError:
+        pass
     con.close() 
         
 def check_columns(df, df_name, sql_db, inspector): 
